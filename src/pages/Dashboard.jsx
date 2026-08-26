@@ -68,7 +68,10 @@ export default function Dashboard() {
               <div className="funnel-bar">
                 <span style={{ width: `${(r.amount / maxStageAmount) * 100}%`, background: r.stage.color }} />
               </div>
-              <span className="funnel-val">{r.count}건 · {compactWon(r.amount)}</span>
+              <span className="funnel-val">
+                {r.count}건 · {compactWon(r.amount)}
+                {r.lostCount > 0 && <em className="funnel-lost"> 실패 {r.lostCount}</em>}
+              </span>
             </div>
           ))}
           {openTotal === 0 && <p className="empty">진행중인 영업기회가 없습니다.</p>}

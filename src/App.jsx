@@ -6,6 +6,7 @@ import Customers from './pages/Customers.jsx'
 import Deals from './pages/Deals.jsx'
 import Activities from './pages/Activities.jsx'
 import Settings from './pages/Settings.jsx'
+import Team from './pages/Team.jsx'
 
 const TABS = [
   { id: 'dashboard', label: '대시보드', icon: '📊', title: '대시보드', Page: Dashboard },
@@ -13,6 +14,11 @@ const TABS = [
   { id: 'customers', label: '거래처', icon: '🏢', title: '거래처', Page: Customers },
   { id: 'activities', label: '활동', icon: '📝', title: '영업 활동', Page: Activities },
   { id: 'settings', label: '설정', icon: '⚙️', title: '설정', Page: Settings },
+]
+
+// 관리자에게만 보이는 탭.
+const ADMIN_TABS = [
+  { id: 'team', label: '팀 관리', icon: '🛡️', title: '팀 관리', Page: Team },
 ]
 
 function Shell() {
@@ -62,7 +68,10 @@ function Shell() {
     )
   }
 
-  const current = TABS.find((t) => t.id === tab) || TABS[0]
+  // 관리자 탭은 권한이 있을 때만 목록에 넣는다.
+  // 권한이 사라지면 선택 중이던 탭도 자동으로 첫 탭으로 돌아간다.
+  const tabs = user.isAdmin ? [...TABS, ...ADMIN_TABS] : TABS
+  const current = tabs.find((t) => t.id === tab) || tabs[0]
   const { Page } = current
 
   return (
@@ -89,7 +98,7 @@ function Shell() {
           <span className="ico" aria-hidden="true">📈</span>
           세일즈
         </div>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"

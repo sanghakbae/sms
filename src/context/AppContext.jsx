@@ -8,16 +8,19 @@ import {
   removeActivity,
   removeCustomer,
   removeDeal,
+  setAdmins,
   setMonthlyTarget,
   signInWithGoogle,
   signOutUser,
   subscribeActivities,
+  subscribeAdmins,
   subscribeCustomers,
   subscribeDeals,
   subscribeTargets,
   updateCustomer,
   updateDeal,
 } from '../lib/store.js'
+import { isAdminEmail } from '../lib/accounts.js'
 
 const Ctx = createContext(null)
 
@@ -27,7 +30,8 @@ function readError(err) {
 }
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [authUser, setAuthUser] = useState(null)
+  const [admins, setAdminList] = useState([])
   const [authReady, setAuthReady] = useState(false)
   const [customers, setCustomers] = useState([])
   const [deals, setDeals] = useState([])
@@ -41,20 +45,29 @@ export function AppProvider({ children }) {
   const errorsRef = useRef({})
 
   useEffect(() => onAuthChange((u) => {
-    setUser(u)
+    setAuthUser(u)
     setAuthReady(true)
     if (!u) {
       setCustomers([])
       setDeals([])
       setActivities([])
       setTargets({})
+      setAdminList([])
     }
   }), [])
 
+  // 관리자 판정은 코드에 박힌 기본 관리자 + Firestore 관리자 명단을 합쳐서 내린다.
+  const user = useMemo(() => {
+    if (!authUser) return null
+    return { ...authUser, isAdmin: isAdminEmail(authUser.email, admins) }
+  }, [authUser, admins])
+
   // 로그인한 뒤에만 구독한다 — 보안 규칙상 비로그인 상태에서는 읽히지 않는다.
   // retry 가 바뀌면 통째로 재구독한다(오류로 끊긴 리스너 복구용).
+  // 의존성은 authUser 다. 파생값인 user 를 쓰면 관리자 명단 스냅샷 → user 변경 →
+  // 재구독 → 스냅샷 … 으로 무한히 다시 구독하게 된다.
   useEffect(() => {
-    if (!user || !user.known) return undefined
+    if (!authUser || !authUser.known) return undefined
     errorsRef.current = {}
     setDataError('')
 
@@ -73,9 +86,10 @@ export function AppProvider({ children }) {
       subscribeDeals(onData('deals', setDeals), onErr('deals')),
       subscribeActivities(onData('activities', setActivities), onErr('activities')),
       subscribeTargets(onData('targets', setTargets), onErr('targets')),
+      subscribeAdmins(onData('admins', setAdminList), onErr('admins')),
     ]
     return () => unsubs.forEach((fn) => fn())
-  }, [user, retry])
+  }, [authUser, retry])
 
   const retryData = useCallback(() => setRetry((n) => n + 1), [])
 
@@ -88,9 +102,8 @@ export function AppProvider({ children }) {
   const notify = useCallback((msg) => setToast(msg), [])
 
   const login = useCallback(async () => {
-    const u = await signInWithGoogle()
-    setUser(u)
-    return u
+    // onAuthChange 가 authUser 를 갱신하므로 여기서 따로 세팅하지 않는다.
+    return signInWithGoogle()
   }, [])
 
   const logout = useCallback(async () => {
@@ -108,6 +121,7 @@ export function AppProvider({ children }) {
     addActivity: (data) => addActivity(user, data),
     removeActivity,
     setMonthlyTarget,
+    setAdmins,
   }), [user])
 
   const value = useMemo(() => ({
@@ -118,6 +132,7 @@ export function AppProvider({ children }) {
     deals,
     activities,
     targets,
+    admins,
     dataError,
     retryData,
     toast,
@@ -125,7 +140,7 @@ export function AppProvider({ children }) {
     login,
     logout,
     ...actions,
-  }), [user, authReady, customers, deals, activities, targets, dataError, retryData, toast, notify, login, logout, actions])
+  }), [user, authReady, customers, deals, activities, targets, admins, dataError, retryData, toast, notify, login, logout, actions])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

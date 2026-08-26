@@ -88,7 +88,10 @@ export default function Settings() {
             return (
               <div className="target-row" key={m}>
                 <span className="tr-month">{monthLabel(m)}</span>
-                <div className="tr-bar"><span style={{ width: `${Math.min(100, p ?? 0)}%` }} /></div>
+                {/* 달성률 막대는 목표가 있을 때만 뜻이 있다. 없으면 빈 막대 대신 이유를 적는다. */}
+                {t > 0
+                  ? <div className="tr-bar"><span style={{ width: `${Math.min(100, p ?? 0)}%` }} /></div>
+                  : <span className="tr-none">목표 미설정</span>}
                 <span className="tr-num">
                   {compactWon(w.amount)} / {t ? compactWon(t) : '—'}
                   {p != null && <small> {p}%</small>}

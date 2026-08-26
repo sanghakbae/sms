@@ -17,7 +17,7 @@ const DEALS = [
   { id: '2', title: 'B', amount: 2000000, stage: 'won', closedDate: '2026-07-30', owner: 'u1', ownerEmail: 'kim@muhayu.com', ownerName: '김' },
   { id: '3', title: 'C', amount: 3000000, stage: 'proposal', owner: 'u2', ownerEmail: 'lee@muhayu.com', ownerName: '이' },
   { id: '4', title: 'D', amount: 5000000, stage: 'negotiation', owner: 'u2', ownerEmail: 'lee@muhayu.com', ownerName: '이' },
-  { id: '5', title: 'E', amount: 4000000, stage: 'lost', closedDate: '2026-08-01', owner: 'u1', ownerEmail: 'kim@muhayu.com', ownerName: '김' },
+  { id: '5', title: 'E', amount: 4000000, stage: 'proposal', lost: true, closedDate: '2026-08-01', owner: 'u1', ownerEmail: 'kim@muhayu.com', ownerName: '김' },
 ]
 
 test('closedMonth: closedDate 우선, 없으면 expectedClose', () => {
@@ -80,7 +80,7 @@ test('isOverdue: 마감일이 오늘보다 앞서면 지연', () => {
 test('isOverdue: 종료된 딜과 마감일 없는 딜은 지연이 아니다', () => {
   const today = '2026-08-27'
   assert.equal(isOverdue({ stage: 'won', expectedClose: '2026-08-01' }, today), false)
-  assert.equal(isOverdue({ stage: 'lost', expectedClose: '2026-08-01' }, today), false)
+  assert.equal(isOverdue({ stage: 'proposal', lost: true, expectedClose: '2026-08-01' }, today), false)
   assert.equal(isOverdue({ stage: 'proposal', expectedClose: '' }, today), false)
   assert.equal(isOverdue({ stage: 'proposal' }, today), false)
   assert.equal(isOverdue(null, today), false)
@@ -91,4 +91,37 @@ test('isOverdue: 한국시간 오전(UTC 날짜가 하루 뒤처질 때)에도 �
   // 8/26 마감 딜을 지연으로 잡지 못했다.
   const kstToday = '2026-08-27'
   assert.equal(isOverdue({ stage: 'negotiation', expectedClose: '2026-08-26' }, kstToday), true)
+})
+
+test('실패는 단계가 아니라 상태다 — 원래 단계에 남고 파이프라인에서는 빠진다', () => {
+  const deals = [
+    { stage: 'proposal', amount: 1000 },
+    { stage: 'proposal', amount: 3000, lost: true },
+    { stage: 'negotiation', amount: 2000, lost: true },
+  ]
+  const rows = stageBreakdown(deals)
+  const proposal = rows.find((r) => r.stage.id === 'proposal')
+  const negotiation = rows.find((r) => r.stage.id === 'negotiation')
+
+  // 진행중 집계에는 실패가 섞이지 않는다.
+  assert.equal(proposal.count, 1)
+  assert.equal(proposal.amount, 1000)
+  // 실패는 깨진 그 단계에 남는다 — 제안에서도, 협상에서도 실패할 수 있다.
+  assert.equal(proposal.lostCount, 1)
+  assert.equal(proposal.lostAmount, 3000)
+  assert.equal(negotiation.lostCount, 1)
+
+  // 파이프라인 합계에서도 빠진다.
+  assert.equal(pipelineSummary(deals).total, 1000)
+  assert.equal(pipelineSummary(deals).count, 1)
+})
+
+test('수주 단계라도 lost 플래그가 있으면 수주가 아니다', () => {
+  const deals = [
+    { stage: 'won', amount: 5000, closedDate: '2026-08-05' },
+    { stage: 'won', amount: 9000, closedDate: '2026-08-06', lost: true },
+  ]
+  assert.equal(monthlyWon(deals, '2026-08').amount, 5000)
+  assert.equal(monthlyWon(deals, '2026-08').count, 1)
+  assert.equal(winRate(deals), 50)
 })

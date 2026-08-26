@@ -21,8 +21,29 @@ service cloud.firestore {
         && email() != '';
     }
 
+    // src/lib/accounts.js 의 BOOTSTRAP_ADMINS 와 반드시 같게 유지할 것.
+    // 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치라 화면에서 지울 수 없다.
+    function bootstrapAdmins() {
+      return ['qa@muhayu.com', 'totoriverce@tukorea.ac.kr'];
+    }
+
+    // 화면에서 추가한 관리자 명단(settings/admins). 문서가 없으면 빈 목록.
+    function rosterAdmins() {
+      return exists(/databases/$(database)/documents/settings/admins)
+        ? get(/databases/$(database)/documents/settings/admins).data.get('emails', [])
+        : [];
+    }
+
     function isAdmin() {
-      return request.auth != null && email() == 'qa@muhayu.com';
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && (email() in bootstrapAdmins() || email() in rosterAdmins());
+    }
+
+    // 담당자(owner) 변경은 관리자만 할 수 있다.
+    // 일반 팀원은 자기 딜을 수정할 수는 있어도 남에게 넘길 수는 없다.
+    function ownerUnchangedOrAdmin() {
+      return request.resource.data.owner == resource.data.owner || isAdmin();
     }
 
     // 담당자 본인 또는 팀장만 손댈 수 있다.
@@ -36,7 +57,8 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0;
-      allow update, delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
+      allow delete: if isMember() && ownsOrAdmin();
     }
 
     match /deals/{id} {
@@ -45,14 +67,16 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.amount is number
         && request.resource.data.amount >= 0;
-      allow update, delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
+      allow delete: if isMember() && ownsOrAdmin();
     }
 
     match /activities/{id} {
       allow read: if isMember();
       allow create: if isMember()
         && request.resource.data.owner == request.auth.uid;
-      allow update, delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
+      allow delete: if isMember() && ownsOrAdmin();
     }
 
     // settings/targets — 월별 매출목표 { 'YYYY-MM': 금액 }. 설정은 팀장만.

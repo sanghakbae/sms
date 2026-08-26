@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore'
 
 import { auth, collectionName, db, isFirebaseConfigured } from '../firebase.js'
-import { isAdminEmail, isAllowedEmail, shortName } from './accounts.js'
+import { isAdminEmail, isAllowedEmail, normalizeEmail, shortName } from './accounts.js'
 
 export { isFirebaseConfigured }
 
@@ -40,6 +40,8 @@ function toUser(fbUser) {
     email,
     name: shortName(fbUser.displayName, email),
     photoURL: fbUser.photoURL || '',
+    // 여기서는 코드에 박힌 기본 관리자만 알 수 있다.
+    // Firestore 관리자 명단까지 반영한 최종 판정은 AppContext 가 한다.
     isAdmin: isAdminEmail(email),
     known: isAllowedEmail(email), // 허용 도메인/관리자만 true
   }
@@ -178,6 +180,26 @@ export async function removeActivity(id) {
 }
 
 /** settings/targets 문서에 월별 목표를 병합 저장(팀장만). */
+/** 관리자 명단(settings/admins). 문서가 없으면 빈 배열. */
+export function subscribeAdmins(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'admins')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? (snap.data().emails || []) : []),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setAdmins(emails) {
+  assertConfigured()
+  const clean = [...new Set((emails || []).map(normalizeEmail).filter(Boolean))]
+  await setDoc(doc(db, collectionName('settings'), 'admins'), { emails: clean }, { merge: true })
+}
+
 export async function setMonthlyTarget(month, amount) {
   assertConfigured()
   await setDoc(

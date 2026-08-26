@@ -1,7 +1,7 @@
 // 대시보드 집계 — 모두 순수 함수라 test/stats.test.js 로 검증한다.
 
 import { monthKey, todayISO } from './format.js'
-import { STAGES, getStage, isWon, isLost, isOpen, stageProbability } from './pipeline.js'
+import { STAGES, dealProbability, isDealLost, isDealOpen, isDealWon } from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
 export function closedMonth(deal) {
@@ -11,7 +11,7 @@ export function closedMonth(deal) {
 
 /** 이번(주어진) 달에 수주한 딜의 합계 금액과 건수. */
 export function monthlyWon(deals, month) {
-  const won = deals.filter((d) => isWon(d.stage) && closedMonth(d) === month)
+  const won = deals.filter((d) => isDealWon(d) && closedMonth(d) === month)
   return {
     amount: won.reduce((s, d) => s + (Number(d.amount) || 0), 0),
     count: won.length,
@@ -21,25 +21,35 @@ export function monthlyWon(deals, month) {
 
 /** 살아있는(진행중) 파이프라인 요약: 총액·가중 예상매출·건수. */
 export function pipelineSummary(deals) {
-  const open = deals.filter((d) => isOpen(d.stage))
+  const open = deals.filter((d) => isDealOpen(d))
   let total = 0
   let weighted = 0
   for (const d of open) {
     const amount = Number(d.amount) || 0
     total += amount
-    weighted += amount * (stageProbability(d.stage) / 100)
+    weighted += amount * (dealProbability(d) / 100)
   }
   return { total, weighted, count: open.length }
 }
 
-/** 단계별 진행중 딜 개수/금액. STAGES 순서를 유지한다. */
+/**
+ * 단계별 딜 개수/금액. STAGES 순서를 유지한다.
+ * 실패한 딜은 파이프라인에서 빠지고 lostCount/lostAmount 로 따로 센다 —
+ * 어느 단계에서 얼마나 깨지는지가 이탈 분석의 핵심이다.
+ */
 export function stageBreakdown(deals) {
-  const map = new Map(STAGES.map((s) => [s.id, { stage: s, count: 0, amount: 0 }]))
+  const map = new Map(STAGES.map((s) => [s.id, { stage: s, count: 0, amount: 0, lostCount: 0, lostAmount: 0 }]))
   for (const d of deals) {
     const row = map.get(d.stage)
     if (!row) continue
-    row.count += 1
-    row.amount += Number(d.amount) || 0
+    const amount = Number(d.amount) || 0
+    if (isDealLost(d)) {
+      row.lostCount += 1
+      row.lostAmount += amount
+    } else {
+      row.count += 1
+      row.amount += amount
+    }
   }
   return STAGES.map((s) => map.get(s.id))
 }
@@ -49,8 +59,8 @@ export function winRate(deals) {
   let won = 0
   let lost = 0
   for (const d of deals) {
-    if (isWon(d.stage)) won += 1
-    else if (isLost(d.stage)) lost += 1
+    if (isDealWon(d)) won += 1
+    else if (isDealLost(d)) lost += 1
   }
   const closed = won + lost
   return closed === 0 ? null : Math.round((won / closed) * 100)
@@ -70,10 +80,10 @@ export function ownerLeaderboard(deals, month) {
       wonAmount: 0, wonCount: 0, openAmount: 0, openCount: 0,
     }
     const amount = Number(d.amount) || 0
-    if (isWon(d.stage) && closedMonth(d) === month) {
+    if (isDealWon(d) && closedMonth(d) === month) {
       base.wonAmount += amount
       base.wonCount += 1
-    } else if (isOpen(d.stage)) {
+    } else if (isDealOpen(d)) {
       base.openAmount += amount
       base.openCount += 1
     }
@@ -97,6 +107,53 @@ export function targetProgress(wonAmount, targetAmount) {
  */
 export function isOverdue(deal, today = todayISO()) {
   if (!deal || !deal.expectedClose) return false
-  if (getStage(deal.stage).closed) return false
+  if (!isDealOpen(deal)) return false
   return deal.expectedClose < today
+}
+
+/**
+ * 팀원별 현황. 딜·거래처·활동에 남은 담당자 정보(ownerEmail/ownerName/owner)로 모은다.
+ * 별도의 사용자 목록이 없으므로 '데이터를 한 번이라도 만든 사람'이 팀원 목록이 된다.
+ */
+export function teamSummary(deals, customers, activities, month) {
+  const rows = new Map()
+  const touch = (doc) => {
+    const key = doc.ownerEmail || doc.owner || '?'
+    if (!rows.has(key)) {
+      rows.set(key, {
+        key,
+        uid: doc.owner || '',
+        email: doc.ownerEmail || '',
+        name: doc.ownerName || doc.ownerEmail || '알수없음',
+        dealCount: 0, wonAmount: 0, wonCount: 0,
+        openAmount: 0, openCount: 0, overdueCount: 0, lostCount: 0,
+        customerCount: 0, activityCount: 0,
+      })
+    }
+    const row = rows.get(key)
+    if (doc.ownerName) row.name = doc.ownerName
+    if (doc.owner) row.uid = doc.owner
+    if (doc.ownerEmail) row.email = doc.ownerEmail
+    return row
+  }
+
+  for (const d of deals || []) {
+    const row = touch(d)
+    row.dealCount += 1
+    const amount = Number(d.amount) || 0
+    if (isDealWon(d) && closedMonth(d) === month) {
+      row.wonAmount += amount
+      row.wonCount += 1
+    } else if (isDealOpen(d)) {
+      row.openAmount += amount
+      row.openCount += 1
+      if (isOverdue(d)) row.overdueCount += 1
+    } else if (isDealLost(d)) {
+      row.lostCount += 1
+    }
+  }
+  for (const c of customers || []) touch(c).customerCount += 1
+  for (const a of activities || []) touch(a).activityCount += 1
+
+  return [...rows.values()].sort((a, b) => b.wonAmount - a.wonAmount || b.openAmount - a.openAmount)
 }

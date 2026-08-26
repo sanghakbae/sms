@@ -7,23 +7,49 @@
 // 다시 특정 도메인만 허용하려면 예: ['muhayu.com'] 처럼 채운다.
 export const ALLOWED_DOMAINS = []
 
-// 팀장(관리자) 이메일 — 목표 설정·전체 수정 권한.
-export const ADMIN_EMAILS = ['qa@muhayu.com']
+// 코드에 박아둔 기본 관리자. 화면에서 지울 수 없다 —
+// 관리자 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치다.
+// firestore.rules 의 isAdmin() 안에 있는 목록과 반드시 같게 유지할 것.
+export const BOOTSTRAP_ADMINS = [
+  'qa@muhayu.com',
+  'totoriverce@tukorea.ac.kr',
+]
+
+export function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase()
+}
 
 function domainOf(email) {
-  return String(email || '').toLowerCase().split('@')[1] || ''
+  return normalizeEmail(email).split('@')[1] || ''
 }
 
 export function isAllowedEmail(email) {
-  const e = String(email || '').toLowerCase()
+  const e = normalizeEmail(email)
   if (!e) return false
-  if (ADMIN_EMAILS.includes(e)) return true
+  if (BOOTSTRAP_ADMINS.includes(e)) return true
   if (ALLOWED_DOMAINS.length === 0) return true // 도메인 제한 없음
   return ALLOWED_DOMAINS.includes(domainOf(e))
 }
 
-export function isAdminEmail(email) {
-  return ADMIN_EMAILS.includes(String(email || '').toLowerCase())
+/**
+ * 관리자인가. 기본 관리자이거나, 화면에서 추가한 관리자 명단에 있으면 참.
+ * extraAdmins 는 Firestore settings/admins 문서에서 온 목록이다.
+ */
+export function isAdminEmail(email, extraAdmins = []) {
+  const e = normalizeEmail(email)
+  if (!e) return false
+  if (BOOTSTRAP_ADMINS.includes(e)) return true
+  return (extraAdmins || []).map(normalizeEmail).includes(e)
+}
+
+/** 기본 관리자는 화면에서 제거할 수 없다. */
+export function isBootstrapAdmin(email) {
+  return BOOTSTRAP_ADMINS.includes(normalizeEmail(email))
+}
+
+/** 이메일 형식이 최소한 맞는지. 관리자 추가 입력 검증용. */
+export function looksLikeEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email))
 }
 
 /** 표시용 짧은 이름 — Google displayName 이 없으면 이메일 아이디를 쓴다. */
