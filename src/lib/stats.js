@@ -1,7 +1,9 @@
 // 대시보드 집계 — 모두 순수 함수라 test/stats.test.js 로 검증한다.
 
 import { monthKey, shiftMonth, todayISO, yearKey } from './format.js'
-import { STAGES, dealProbability, isDealLost, isDealOpen, isDealWon } from './pipeline.js'
+import {
+  STAGES, dealProbability, isDealLost, isDealOpen, isDealWon, isPreQualified, isQualified,
+} from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
 export function closedMonth(deal) {
@@ -19,17 +21,29 @@ export function monthlyWon(deals, month) {
   }
 }
 
-/** 살아있는(진행중) 파이프라인 요약: 총액·가중 예상매출·건수. */
+/**
+ * 살아있는 파이프라인 요약.
+ * total·weighted 는 '검증을 통과한' 딜만 센다 — 리드는 아직 단서라
+ * 전망치에 섞이면 예상매출이 부풀려진다. 리드는 lead* 로 따로 돌려준다.
+ */
 export function pipelineSummary(deals) {
-  const open = deals.filter((d) => isDealOpen(d))
   let total = 0
   let weighted = 0
-  for (const d of open) {
+  let count = 0
+  let leadTotal = 0
+  let leadCount = 0
+  for (const d of deals || []) {
     const amount = Number(d.amount) || 0
-    total += amount
-    weighted += amount * (dealProbability(d) / 100)
+    if (isQualified(d)) {
+      total += amount
+      weighted += amount * (dealProbability(d) / 100)
+      count += 1
+    } else if (isPreQualified(d)) {
+      leadTotal += amount
+      leadCount += 1
+    }
   }
-  return { total, weighted, count: open.length }
+  return { total, weighted, count, leadTotal, leadCount, openCount: count + leadCount }
 }
 
 /**

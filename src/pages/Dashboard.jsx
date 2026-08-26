@@ -88,8 +88,18 @@ export default function Dashboard() {
       </section>
 
       <div className="stat-grid">
-        <StatCard label="진행중 파이프라인" value={compactWon(pipe.total)} sub={`${pipe.count}건 진행중`} accent="#6366f1" />
-        <StatCard label="가중 예상매출" value={compactWon(pipe.weighted)} sub="단계별 확률 반영" accent="#0ea5e9" />
+        <StatCard
+          label="영업기회 파이프라인"
+          value={compactWon(pipe.total)}
+          sub={`검증 통과 ${pipe.count}건 · 리드 ${pipe.leadCount}건 별도`}
+          accent="#6366f1"
+        />
+        <StatCard
+          label="가중 예상매출"
+          value={compactWon(pipe.weighted)}
+          sub="단계별 확률 반영 · 리드 제외"
+          accent="#0ea5e9"
+        />
         <StatCard label="수주율" value={rate == null ? '—' : `${rate}%`} sub={rate == null ? '종료된 딜 없음' : `실패 ${totalLost}건 대비`} accent="#f59e0b" />
         <StatCard label="지연" value={`${overdue.length}건`} sub={overdue.length ? '마감일 초과' : '지연 없음'} accent={overdue.length ? '#e5484d' : '#10b981'} />
       </div>
@@ -97,12 +107,12 @@ export default function Dashboard() {
       {/* 퍼널 — 단계별 잔량과 다음 단계 전환율을 같이 본다. */}
       <section className="panel">
         <h3>파이프라인 퍼널</h3>
-        {pipe.count === 0 ? (
+        {pipe.openCount === 0 ? (
           <p className="empty">진행중인 영업기회가 없습니다.</p>
         ) : (
           <div className="funnel2">
             {openStages.map((r) => (
-              <div className="fn-row" key={r.stage.id}>
+              <div className={`fn-row${r.stage.preQualified ? ' pre' : ''}`} key={r.stage.id}>
                 <span className="fn-name" style={{ color: r.stage.color }}>{r.stage.label}</span>
                 <div className="fn-track">
                   <span className="fn-fill" style={{ width: `${(r.reached / maxReached) * 100}%`, background: r.stage.color }} />
@@ -116,6 +126,9 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+        <small className="hint">
+          리드는 아직 검증 전 단서라 예상매출에 넣지 않습니다. 검증을 통과하면 영업기회로 셉니다.
+        </small>
       </section>
 
       <div className="split">

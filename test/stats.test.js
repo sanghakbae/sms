@@ -165,3 +165,38 @@ test('allocationSummary: 미할당·초과·목록 밖 할당을 정확히 센�
   assert.equal(orphan.allocated, 5000)
   assert.equal(orphan.unallocated, 5000)
 })
+
+test('리드는 검증 전이라 파이프라인 금액과 예상매출에서 빠진다', () => {
+  const deals = [
+    { stage: 'lead', amount: 1_000_000 },
+    { stage: 'qualify', amount: 2_000_000 },
+    { stage: 'proposal', amount: 4_000_000 },
+  ]
+  const r = pipelineSummary(deals)
+
+  // 리드 금액은 total 에 들어가지 않는다 — 검증 안 된 단서까지 더하면 전망이 부풀려진다.
+  assert.equal(r.total, 6_000_000)
+  assert.equal(r.count, 2)
+  assert.equal(r.weighted, 2_000_000 * 0.2 + 4_000_000 * 0.5)
+
+  // 리드는 사라지지 않고 따로 집계된다.
+  assert.equal(r.leadTotal, 1_000_000)
+  assert.equal(r.leadCount, 1)
+  assert.equal(r.openCount, 3)
+})
+
+test('검증 단계가 리드와 상담 사이에 들어간다', () => {
+  const ids = stageBreakdown([]).map((r) => r.stage.id)
+  assert.deepEqual(ids, ['lead', 'qualify', 'contact', 'proposal', 'negotiation', 'won'])
+})
+
+test('실패한 리드는 파이프라인·리드 어느 쪽에도 들어가지 않는다', () => {
+  const deals = [
+    { stage: 'lead', amount: 1_000_000, lost: true },
+    { stage: 'lead', amount: 3_000_000 },
+  ]
+  const r = pipelineSummary(deals)
+  assert.equal(r.leadTotal, 3_000_000)
+  assert.equal(r.leadCount, 1)
+  assert.equal(r.total, 0)
+})

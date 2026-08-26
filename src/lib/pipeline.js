@@ -3,9 +3,12 @@
 // 실패는 단계가 아니라 딜에 붙는 lost 플래그다 — 아래 주석 참고.
 // probability 는 그 단계 딜의 기본 성공확률(가중 예상매출 계산에 쓴다).
 
+// preQualified 인 단계는 '아직 영업기회로 인정하기 전' 이다.
+// 예산·권한·니즈·시기가 확인되지 않았으므로 매출 전망에 넣지 않는다.
 export const STAGES = [
-  { id: 'lead', label: '리드', short: '발굴', color: '#64748b', probability: 10, closed: false },
-  { id: 'contact', label: '상담', short: '접촉', color: '#0ea5e9', probability: 25, closed: false },
+  { id: 'lead', label: '리드', short: '발굴', color: '#94a3b8', probability: 10, closed: false, preQualified: true },
+  { id: 'qualify', label: '검증', short: '자격', color: '#64748b', probability: 20, closed: false },
+  { id: 'contact', label: '상담', short: '접촉', color: '#0ea5e9', probability: 30, closed: false },
   { id: 'proposal', label: '제안', short: '견적', color: '#6366f1', probability: 50, closed: false },
   { id: 'negotiation', label: '협상', short: '조율', color: '#f59e0b', probability: 80, closed: false },
   { id: 'won', label: '수주', short: '성공', color: '#10b981', probability: 100, closed: true, win: true },
@@ -52,6 +55,19 @@ export function isDealWon(deal) {
 /** 아직 진행중인 딜인가. */
 export function isDealOpen(deal) {
   return !isDealLost(deal) && isOpen(deal && deal.stage)
+}
+
+/**
+ * 검증을 통과해 '영업기회' 로 인정되는 딜인가.
+ * 리드는 아직 단서일 뿐이라 파이프라인 금액과 전망치에서 빼야 한다.
+ */
+export function isQualified(deal) {
+  return isDealOpen(deal) && getStage(deal && deal.stage).preQualified !== true
+}
+
+/** 아직 검증 전(리드) 인 딜인가. */
+export function isPreQualified(deal) {
+  return isDealOpen(deal) && getStage(deal && deal.stage).preQualified === true
 }
 
 /** 딜의 성공확률 — 실패한 딜은 0%. */

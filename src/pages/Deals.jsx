@@ -295,7 +295,11 @@ function DealModal({ deal, customers, services, members, isAdmin, canDelete, onC
           <small className="hint">
             {form.lost
               ? `${s.label} 단계에서 실패로 마감됩니다.`
-              : s.closed ? '수주로 마감됩니다.' : `기본 성공확률 ${s.probability}%`}
+              : s.closed
+                ? '수주로 마감됩니다.'
+                : s.preQualified
+                  ? '아직 검증 전 단서입니다 — 예상매출에 잡히지 않습니다. 예산·권한·니즈·시기가 확인되면 검증으로 옮기세요.'
+                  : `기본 성공확률 ${s.probability}%`}
           </small>
         </div>
 
