@@ -541,7 +541,9 @@ input, select, textarea { font-family: inherit; }
 /* ------------------------------ 데스크톱 보정 ----------------------------- */
 @media (min-width: 720px) {
   .stat-grid { grid-template-columns: repeat(4, 1fr); }
-  .board-col { flex-basis: 260px; }
+  /* 240px 를 최소폭으로 두되, 남는 폭이 있으면 열이 늘어나 가로를 다 쓴다.
+     열이 다 안 들어가면 그때만 가로 스크롤이 생긴다. */
+  .board-col { flex: 1 0 240px; max-width: none; }
   .modal-backdrop { align-items: center; }
   .modal { border-radius: 20px; }
 }
@@ -1118,4 +1120,14 @@ input, select, textarea { font-family: inherit; }
   .stat-value { font-size: 21px; }
   .hero-value { font-size: 30px; }
   .tabbar button { font-size: 9.5px; }
+}
+
+/* 넓은 화면에서는 칸반 6열이 가로를 정확히 나눠 갖는다 — 스크롤 없이 한눈에. */
+@media (min-width: 1440px) {
+  .board { overflow-x: visible; }
+  .board-col { flex: 1 1 0; min-width: 0; }
+  /* 열이 좁아지면 제목과 금액이 한 줄에서 부딪힌다. 금액을 아래로 내린다. */
+  .deal-top { flex-wrap: wrap; row-gap: 2px; }
+  .deal-title { flex: 1 1 100%; }
+  .deal-amount { font-size: 13.5px; }
 }
