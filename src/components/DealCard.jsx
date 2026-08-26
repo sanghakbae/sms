@@ -27,6 +27,7 @@ export default function DealCard({ deal, onClick, dragging, onDragStart, onDragE
         <span className="deal-amount">{compactWon(deal.amount)}</span>
       </div>
       {deal.customerName && <div className="deal-customer">🏢 {deal.customerName}</div>}
+      {deal.serviceName && <div className="deal-service">{deal.serviceName}</div>}
       {lost && deal.lostReason && <div className="deal-retro">📉 {deal.lostReason}</div>}
       <div className="deal-meta">
         <span className="deal-owner">👤 {deal.ownerName || '—'}</span>

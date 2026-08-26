@@ -241,6 +241,7 @@ const CUSTOMER_COLS = [
 const DEAL_COLS = [
   { key: 'title', label: '제목' },
   { key: 'customerName', label: '거래처' },
+  { key: 'serviceName', label: '대상 서비스' },
   { label: '단계', value: (d) => getStage(d.stage).label },
   { label: '상태', value: (d) => (d.lost ? '실패' : d.stage === 'won' ? '수주' : '진행중') },
   { key: 'lostReason', label: '실패 회고' },

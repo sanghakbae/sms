@@ -9,12 +9,14 @@ import {
   removeCustomer,
   removeDeal,
   setAdmins,
+  setServices,
   setYearlyTarget,
   signInWithGoogle,
   signOutUser,
   subscribeActivities,
   subscribeAdmins,
   subscribeCustomers,
+  subscribeServices,
   subscribeDeals,
   subscribeTargets,
   updateCustomer,
@@ -32,6 +34,7 @@ function readError(err) {
 export function AppProvider({ children }) {
   const [authUser, setAuthUser] = useState(null)
   const [admins, setAdminList] = useState([])
+  const [services, setServiceList] = useState([])
   const [authReady, setAuthReady] = useState(false)
   const [customers, setCustomers] = useState([])
   const [deals, setDeals] = useState([])
@@ -53,6 +56,7 @@ export function AppProvider({ children }) {
       setActivities([])
       setTargets({})
       setAdminList([])
+      setServiceList([])
     }
   }), [])
 
@@ -87,6 +91,7 @@ export function AppProvider({ children }) {
       subscribeActivities(onData('activities', setActivities), onErr('activities')),
       subscribeTargets(onData('targets', setTargets), onErr('targets')),
       subscribeAdmins(onData('admins', setAdminList), onErr('admins')),
+      subscribeServices(onData('services', setServiceList), onErr('services')),
     ]
     return () => unsubs.forEach((fn) => fn())
   }, [authUser, retry])
@@ -122,6 +127,7 @@ export function AppProvider({ children }) {
     removeActivity,
     setYearlyTarget,
     setAdmins,
+    setServices,
   }), [user])
 
   const value = useMemo(() => ({
@@ -133,6 +139,7 @@ export function AppProvider({ children }) {
     activities,
     targets,
     admins,
+    services,
     dataError,
     retryData,
     toast,
@@ -140,7 +147,7 @@ export function AppProvider({ children }) {
     login,
     logout,
     ...actions,
-  }), [user, authReady, customers, deals, activities, targets, admins, dataError, retryData, toast, notify, login, logout, actions])
+  }), [user, authReady, customers, deals, activities, targets, admins, services, dataError, retryData, toast, notify, login, logout, actions])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

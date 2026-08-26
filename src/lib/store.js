@@ -200,6 +200,31 @@ export async function setAdmins(emails) {
   await setDoc(doc(db, collectionName('settings'), 'admins'), { emails: clean }, { merge: true })
 }
 
+/** 판매 대상 서비스 목록(settings/services). 문서가 없으면 빈 배열. */
+export function subscribeServices(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'services')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? (snap.data().items || []) : []),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setServices(items) {
+  assertConfigured()
+  const clean = (items || [])
+    .map((it) => ({
+      id: String(it.id || '').trim(),
+      name: String(it.name || '').trim(),
+    }))
+    .filter((it) => it.id && it.name)
+  await setDoc(doc(db, collectionName('settings'), 'services'), { items: clean }, { merge: true })
+}
+
 /** 연 매출목표. settings/targets 문서에 'YYYY' 키로 저장한다. */
 export async function setYearlyTarget(year, amount) {
   assertConfigured()

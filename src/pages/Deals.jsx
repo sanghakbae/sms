@@ -7,12 +7,12 @@ import { compactWon, formatWon, monthKey, todayISO } from '../lib/format.js'
 import { teamSummary } from '../lib/stats.js'
 
 const EMPTY = {
-  title: '', customerId: '', amount: '', stage: 'lead',
+  title: '', customerId: '', serviceId: '', amount: '', stage: 'lead',
   expectedClose: '', memo: '', lost: false, lostReason: '',
 }
 
 export default function Deals() {
-  const { deals, customers, activities, user, addDeal, updateDeal, removeDeal, notify } = useApp()
+  const { deals, customers, activities, services, user, addDeal, updateDeal, removeDeal, notify } = useApp()
   const [editing, setEditing] = useState(null) // null | 'new' | deal
   const [ownerFilter, setOwnerFilter] = useState('all') // 'all' | 'mine'
   const [q, setQ] = useState('')
@@ -25,7 +25,7 @@ export default function Deals() {
     return deals.filter((d) => {
       if (ownerFilter === 'mine' && d.owner !== user.uid) return false
       if (!needle) return true
-      return [d.title, d.customerName, d.ownerName, d.memo].some((v) =>
+      return [d.title, d.customerName, d.serviceName, d.ownerName, d.memo].some((v) =>
         String(v || '').toLowerCase().includes(needle))
     })
   }, [deals, ownerFilter, user, q])
@@ -69,7 +69,7 @@ export default function Deals() {
       <div className="toolbar">
         <input
           className="search"
-          placeholder="영업기회·거래처·담당자 검색"
+          placeholder="영업기회·거래처·서비스·담당자 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -137,6 +137,7 @@ export default function Deals() {
         <DealModal
           deal={editing === 'new' ? null : editing}
           customers={customers}
+          services={services}
           members={members}
           isAdmin={user.isAdmin}
           canDelete={editing !== 'new' && (user.isAdmin || editing.owner === user.uid)}
@@ -158,7 +159,7 @@ export default function Deals() {
   )
 }
 
-function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSave, onDelete }) {
+function DealModal({ deal, customers, services, members, isAdmin, canDelete, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(deal
     ? {
         ...EMPTY,
@@ -172,6 +173,13 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const chooseService = (e) => {
+    const id = e.target.value
+    const svc = services.find((x) => x.id === id)
+    // 이름도 같이 저장한다 — 목록에서 서비스가 지워져도 딜에는 남아야 한다.
+    setForm((f) => ({ ...f, serviceId: id, serviceName: svc?.name || '' }))
+  }
 
   const chooseCustomer = (e) => {
     const id = e.target.value
@@ -196,6 +204,8 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
         title: form.title.trim(),
         customerId: form.customerId || '',
         customerName: form.customerName || (customers.find((c) => c.id === form.customerId)?.name ?? ''),
+        serviceId: form.serviceId || '',
+        serviceName: form.serviceName || (services.find((x) => x.id === form.serviceId)?.name ?? ''),
         amount: Number(form.amount) || 0,
         stage: form.stage,
         expectedClose: form.expectedClose || '',
@@ -249,6 +259,16 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
             <select value={form.customerId} onChange={chooseCustomer}>
               <option value="">선택 안 함</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          <label className="field"><span>대상 서비스</span>
+            <select value={form.serviceId || ''} onChange={chooseService}>
+              <option value="">선택 안 함</option>
+              {/* 목록에서 지워진 서비스라도 이 딜에 붙어 있으면 계속 보여준다. */}
+              {form.serviceId && !services.some((x) => x.id === form.serviceId) && (
+                <option value={form.serviceId}>{form.serviceName || '지워진 서비스'}</option>
+              )}
+              {services.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
             </select>
           </label>
           <label className="field"><span>예상 금액(원)</span>
