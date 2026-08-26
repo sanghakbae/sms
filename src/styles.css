@@ -493,6 +493,8 @@ input, select, textarea { font-family: inherit; }
 .tr-month { font-size: 13px; font-weight: 700; }
 .tr-bar { height: 10px; background: var(--bg); border-radius: 6px; overflow: hidden; }
 .tr-bar span { display: block; height: 100%; background: var(--brand); border-radius: 6px; }
+.target-now .pct { color: var(--brand); }
+.panel .hint { display: block; margin: -6px 0 12px; color: var(--muted); font-size: 12.5px; }
 .tr-none { font-size: 12px; color: var(--muted); font-style: italic; }
 .tr-num { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .tr-num small { color: var(--brand); font-weight: 700; }
@@ -736,3 +738,107 @@ input, select, textarea { font-family: inherit; }
 /* 모달 — 모서리와 여백을 조금 더 여유 있게. */
 .modal { box-shadow: 0 24px 64px rgba(13, 21, 38, 0.18); }
 .modal-head h2 { letter-spacing: -0.02em; }
+
+/* =============================== 대시보드 =============================== */
+
+/* 히어로 — 이번 달 수주와 목표 달성률을 가장 먼저 보여준다. */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+.hero-main { display: flex; flex-direction: column; gap: 4px; }
+.hero-label { color: var(--muted); font-size: 13px; font-weight: 600; }
+.hero-value { font-size: 42px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+.hero-sub { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.hero-sub em { font-style: normal; font-weight: 700; }
+.hero-sub em.up { color: #0f766e; }
+.hero-sub em.down { color: var(--danger); }
+
+.hero-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.goal-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--muted); }
+.goal-top b { font-size: 20px; color: var(--ink); font-weight: 800; letter-spacing: -0.02em; }
+.goal-bar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.goal-bar span { display: block; height: 100%; background: var(--brand); border-radius: 999px; transition: width .3s ease; }
+.goal-foot { font-size: 12.5px; color: var(--muted); }
+.empty-goal { gap: 4px; }
+.empty-goal b { font-size: 14px; }
+.empty-goal span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+
+/* 퍼널 — 단계별 잔량 막대 + 다음 단계 전환율. */
+.funnel2 { display: flex; flex-direction: column; gap: 10px; }
+.fn-row { display: grid; grid-template-columns: 44px 1fr 104px; align-items: center; gap: 12px; }
+.fn-name { font-size: 13px; font-weight: 700; }
+.fn-track {
+  position: relative;
+  height: 30px;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.fn-fill { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.22; border-radius: 8px; }
+.fn-inline { position: relative; padding-left: 10px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.fn-conv { text-align: right; font-size: 12px; color: var(--muted); font-weight: 700; }
+.fn-conv em { font-style: normal; color: var(--danger); font-weight: 700; }
+
+/* 좌우 2단 패널 */
+.split { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 1024px) { .split { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.count-warn {
+  background: var(--danger); color: #fff; border-radius: 999px;
+  padding: 0 7px; font-size: 11px; margin-left: 6px;
+}
+
+/* 대시보드용 한 줄 딜 */
+.mini-deals { display: flex; flex-direction: column; }
+.md-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.md-row:last-child { border-bottom: 0; }
+.md-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.md-main b { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-main small, .md-side small { color: var(--muted); font-size: 11.5px; }
+.md-side { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.md-side b { font-size: 14px; color: var(--brand); }
+.md-row.overdue .md-side small { color: var(--danger); font-weight: 700; }
+
+/* 최근 활동 */
+.recent { display: flex; flex-direction: column; }
+.rc-row { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rc-row:last-child { border-bottom: 0; }
+.rc-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand);
+  display: grid; place-items: center; font-weight: 800; font-size: 12px;
+}
+.rc-body { min-width: 0; }
+.rc-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.rc-head b { font-size: 13.5px; }
+.rc-head span { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.rc-note {
+  margin: 2px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.lb-who { font-weight: 700; font-size: 14px; }
+
+@media (min-width: 860px) {
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); align-items: center; }
+}

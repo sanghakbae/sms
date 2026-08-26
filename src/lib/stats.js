@@ -1,6 +1,6 @@
 // 대시보드 집계 — 모두 순수 함수라 test/stats.test.js 로 검증한다.
 
-import { monthKey, todayISO } from './format.js'
+import { monthKey, shiftMonth, todayISO } from './format.js'
 import { STAGES, dealProbability, isDealLost, isDealOpen, isDealWon } from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
@@ -156,4 +156,52 @@ export function teamSummary(deals, customers, activities, month) {
   for (const a of activities || []) touch(a).activityCount += 1
 
   return [...rows.values()].sort((a, b) => b.wonAmount - a.wonAmount || b.openAmount - a.openAmount)
+}
+
+/** 전월 대비 증감률(%). 지난달이 0이면 null(비교 불가). */
+export function monthOverMonth(deals, month) {
+  const now = monthlyWon(deals, month).amount
+  const prev = monthlyWon(deals, shiftMonth(month, -1)).amount
+  if (prev <= 0) return null
+  return Math.round(((now - prev) / prev) * 100)
+}
+
+/** 마감일이 지난 진행중 딜 — 급한 순(오래 지난 순). */
+export function overdueDeals(deals, today = todayISO()) {
+  return (deals || [])
+    .filter((d) => isOverdue(d, today))
+    .sort((a, b) => (a.expectedClose < b.expectedClose ? -1 : 1))
+}
+
+/** 앞으로 days 일 안에 마감 예정인 진행중 딜 — 금액 큰 순. */
+export function closingSoon(deals, days = 14, today = todayISO()) {
+  const limit = new Date(`${today}T00:00:00Z`)
+  limit.setUTCDate(limit.getUTCDate() + days)
+  const limitIso = limit.toISOString().slice(0, 10)
+  return (deals || [])
+    .filter((d) => isDealOpen(d) && d.expectedClose && d.expectedClose >= today && d.expectedClose <= limitIso)
+    .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+}
+
+/**
+ * 단계 간 전환율. 각 단계의 '통과 건수'(그 단계 이후로 넘어간 것 포함)를 기준으로
+ * 다음 단계로 얼마나 넘어갔는지 본다. 파이프라인 어디서 새는지 보려는 지표다.
+ */
+export function stageFunnel(deals) {
+  const rows = stageBreakdown(deals)
+  // 뒤에서부터 누적 — i 단계까지 도달한 딜은 i 이후 단계의 합.
+  const reached = []
+  let acc = 0
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    acc += rows[i].count
+    reached[i] = acc
+  }
+  return rows.map((r, i) => ({
+    ...r,
+    reached: reached[i],
+    // 다음 단계로 넘어간 비율.
+    conversion: i < rows.length - 1 && reached[i] > 0
+      ? Math.round((reached[i + 1] / reached[i]) * 100)
+      : null,
+  }))
 }

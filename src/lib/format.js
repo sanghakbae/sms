@@ -11,6 +11,22 @@ export function monthKey(iso) {
   return (iso || todayISO()).slice(0, 7)
 }
 
+/** 'YYYY-MM' 을 delta 개월만큼 옮긴다. -1 이면 지난달. */
+export function shiftMonth(key, delta) {
+  const [y, m] = String(key).split('-').map(Number)
+  const total = y * 12 + (m - 1) + delta
+  const ny = Math.floor(total / 12)
+  const nm = total % 12
+  return `${ny}-${String(nm + 1).padStart(2, '0')}`
+}
+
+/** 남은 일수 — 이번 달 말일까지. */
+export function daysLeftInMonth(today = todayISO()) {
+  const [y, m, d] = String(today).split('-').map(Number)
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return Math.max(0, last - d)
+}
+
 export function monthLabel(key) {
   const [y, m] = String(key).split('-')
   return `${y}년 ${Number(m)}월`

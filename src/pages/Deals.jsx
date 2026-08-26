@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Modal from '../components/Modal.jsx'
 import DealCard from '../components/DealCard.jsx'
-import { LOST, STAGES, getStage, isDealLost, isOpen } from '../lib/pipeline.js'
+import { STAGES, getStage, isDealLost, isOpen } from '../lib/pipeline.js'
 import { compactWon, monthKey, todayISO } from '../lib/format.js'
 import { teamSummary } from '../lib/stats.js'
 
@@ -159,7 +159,16 @@ export default function Deals() {
 }
 
 function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSave, onDelete }) {
-  const [form, setForm] = useState(deal ? { ...EMPTY, ...deal, amount: String(deal.amount ?? '') } : EMPTY)
+  const [form, setForm] = useState(deal
+    ? {
+        ...EMPTY,
+        ...deal,
+        amount: String(deal.amount ?? ''),
+        // 되살린 딜에는 예전 회고가 남아 있다. 지금 실패 상태가 아니면 빈 칸에서 시작해
+        // 옛 사유가 새 실패의 회고로 잘못 저장되지 않게 한다.
+        lostReason: deal.lost ? (deal.lostReason || '') : '',
+      }
+    : EMPTY)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -174,7 +183,7 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
     e.preventDefault()
     if (!form.title.trim()) return
     // 실패는 이유를 남겨야 다음에 쓸모가 있다.
-    if (form.lost && !form.lostReason.trim()) {
+    if (form.lost && !(form.lostReason || '').trim()) {
       setError('실패 회고를 입력해야 저장할 수 있습니다.')
       return
     }
@@ -192,7 +201,7 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
         expectedClose: form.expectedClose || '',
         memo: (form.memo || '').trim(),
         lost: Boolean(form.lost),
-        lostReason: form.lost ? form.lostReason.trim() : '',
+        lostReason: form.lost ? (form.lostReason || '').trim() : '',
       }
       // 종료(수주·실패)되면 종료일을 남기고, 다시 진행 상태로 오면 지운다.
       const closedNow = nowClosed || form.lost
