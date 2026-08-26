@@ -1,6 +1,6 @@
 // 대시보드 집계 — 모두 순수 함수라 test/stats.test.js 로 검증한다.
 
-import { monthKey } from './format.js'
+import { monthKey, todayISO } from './format.js'
 import { STAGES, getStage, isWon, isLost, isOpen, stageProbability } from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
@@ -88,4 +88,15 @@ export function targetProgress(wonAmount, targetAmount) {
   const t = Number(targetAmount) || 0
   if (t <= 0) return null
   return Math.round((wonAmount / t) * 100)
+}
+
+/**
+ * 예상 마감일이 지났는데 아직 종료되지 않은 딜인가.
+ * 'YYYY-MM-DD' 문자열끼리 비교한다 — Date 로 바꾸면 UTC 로 해석돼
+ * 한국 시간 자정~오전 9시 사이에 하루가 어긋난다.
+ */
+export function isOverdue(deal, today = todayISO()) {
+  if (!deal || !deal.expectedClose) return false
+  if (getStage(deal.stage).closed) return false
+  return deal.expectedClose < today
 }

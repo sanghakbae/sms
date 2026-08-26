@@ -37,7 +37,9 @@ export default function Login() {
         {error && <div className="login-error">{error}</div>}
 
         <p className="login-hint">
-          {ALLOWED_DOMAINS.map((d) => `@${d}`).join(', ')} 계정만 접근할 수 있습니다.
+          {ALLOWED_DOMAINS.length > 0
+            ? `${ALLOWED_DOMAINS.map((d) => `@${d}`).join(', ')} 계정만 접근할 수 있습니다.`
+            : 'Google 계정으로 로그인하면 바로 사용할 수 있습니다.'}
         </p>
       </div>
     </div>

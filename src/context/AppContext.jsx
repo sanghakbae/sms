@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   addActivity,
   addCustomer,
@@ -35,6 +35,10 @@ export function AppProvider({ children }) {
   const [targets, setTargets] = useState({})
   const [dataError, setDataError] = useState('')
   const [toast, setToast] = useState('')
+  const [retry, setRetry] = useState(0)
+  // 구독별 최신 오류. Firestore 는 오류가 나면 리스너를 떼어버리므로
+  // 어느 구독이 죽었는지 따로 기억했다가 재구독으로 되살린다.
+  const errorsRef = useRef({})
 
   useEffect(() => onAuthChange((u) => {
     setUser(u)
@@ -48,18 +52,32 @@ export function AppProvider({ children }) {
   }), [])
 
   // 로그인한 뒤에만 구독한다 — 보안 규칙상 비로그인 상태에서는 읽히지 않는다.
+  // retry 가 바뀌면 통째로 재구독한다(오류로 끊긴 리스너 복구용).
   useEffect(() => {
     if (!user || !user.known) return undefined
+    errorsRef.current = {}
     setDataError('')
-    const onErr = (e) => setDataError(readError(e))
+
+    const sync = () => {
+      const first = Object.values(errorsRef.current).find(Boolean)
+      setDataError(first || '')
+    }
+    const onErr = (key) => (e) => { errorsRef.current[key] = readError(e); sync() }
+    const onData = (key, setter) => (rows) => {
+      if (errorsRef.current[key]) { delete errorsRef.current[key]; sync() }
+      setter(rows)
+    }
+
     const unsubs = [
-      subscribeCustomers(setCustomers, onErr),
-      subscribeDeals(setDeals, onErr),
-      subscribeActivities(setActivities, onErr),
-      subscribeTargets(setTargets, onErr),
+      subscribeCustomers(onData('customers', setCustomers), onErr('customers')),
+      subscribeDeals(onData('deals', setDeals), onErr('deals')),
+      subscribeActivities(onData('activities', setActivities), onErr('activities')),
+      subscribeTargets(onData('targets', setTargets), onErr('targets')),
     ]
     return () => unsubs.forEach((fn) => fn())
-  }, [user])
+  }, [user, retry])
+
+  const retryData = useCallback(() => setRetry((n) => n + 1), [])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -101,12 +119,13 @@ export function AppProvider({ children }) {
     activities,
     targets,
     dataError,
+    retryData,
     toast,
     notify,
     login,
     logout,
     ...actions,
-  }), [user, authReady, customers, deals, activities, targets, dataError, toast, notify, login, logout, actions])
+  }), [user, authReady, customers, deals, activities, targets, dataError, retryData, toast, notify, login, logout, actions])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

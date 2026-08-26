@@ -68,7 +68,11 @@ export default function Activities() {
                       type="button"
                       className="icon-btn"
                       aria-label="삭제"
-                      onClick={async () => { await removeActivity(a.id); notify('활동을 삭제했습니다.') }}
+                      onClick={async () => {
+                        if (!window.confirm('이 활동 기록을 삭제할까요? 되돌릴 수 없습니다.')) return
+                        await removeActivity(a.id)
+                        notify('활동을 삭제했습니다.')
+                      }}
                     >✕</button>
                   )}
                 </div>

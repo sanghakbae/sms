@@ -16,7 +16,7 @@ const TABS = [
 ]
 
 function Shell() {
-  const { user, authReady, dataError, toast, isFirebaseConfigured } = useApp()
+  const { user, authReady, dataError, retryData, toast, isFirebaseConfigured } = useApp()
   const [tab, setTab] = useState('dashboard')
 
   if (!isFirebaseConfigured) {
@@ -76,12 +76,19 @@ function Shell() {
       </header>
 
       {dataError && (
-        <div className="err-strip">⚠️ {dataError}</div>
+        <div className="err-strip">
+          <span>⚠️ {dataError}</span>
+          <button type="button" onClick={retryData}>다시 시도</button>
+        </div>
       )}
 
       <Page />
 
       <nav className="tabbar">
+        <div className="tabbar-brand">
+          <span className="ico" aria-hidden="true">📈</span>
+          세일즈
+        </div>
         {TABS.map((t) => (
           <button
             key={t.id}

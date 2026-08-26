@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// 영업 관리시스템 — 등록된 영업팀 계정만 접근한다.
+// 영업 관리시스템 — 로그인(Google, 이메일 인증됨)한 계정이면 접근할 수 있다.
 // 거래처·영업기회·활동은 팀 전체가 함께 보되(파이프라인·실적을 공유하므로),
 // 수정·삭제는 담당자 본인 또는 팀장(admin)만 가능하다.
 // 월 매출목표 설정은 팀장만 할 수 있다.
@@ -12,11 +12,13 @@ service cloud.firestore {
     }
 
     // src/lib/accounts.js 의 ALLOWED_DOMAINS·ADMIN_EMAILS 와 반드시 같게 유지할 것.
-    // Google OAuth 로 로그인한 @muhayu.com 계정(또는 관리자)만 팀원으로 인정한다.
+    // 도메인 제한 없음 — 이메일이 인증된 Google 계정이면 팀원으로 인정한다.
+    // 특정 도메인만 허용하려면 accounts.js 의 ALLOWED_DOMAINS 와 함께
+    // 아래 조건에 email().matches('.*@example[.]com') 형태를 다시 추가한다.
     function isMember() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && (email().matches('.*@muhayu[.]com') || isAdmin());
+        && email() != '';
     }
 
     function isAdmin() {

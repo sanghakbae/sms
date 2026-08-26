@@ -7,7 +7,7 @@ import { initial } from '../lib/accounts.js'
 const EMPTY = { name: '', industry: '', grade: 'B', contactName: '', phone: '', email: '', memo: '' }
 
 export default function Customers() {
-  const { customers, deals, user, addCustomer, updateCustomer, removeCustomer, notify } = useApp()
+  const { customers, deals, activities, user, addCustomer, updateCustomer, removeCustomer, notify } = useApp()
   const [q, setQ] = useState('')
   const [gradeFilter, setGradeFilter] = useState('')
   const [editing, setEditing] = useState(null) // null | 'new' | customer
@@ -85,6 +85,13 @@ export default function Customers() {
             setEditing(null)
           }}
           onDelete={async () => {
+            // 거래처를 지워도 연결된 딜·활동은 남는다. 몇 건이 끊기는지 먼저 알린다.
+            const linkedDeals = deals.filter((d) => d.customerId === editing.id).length
+            const linkedActs = activities.filter((a) => a.customerId === editing.id).length
+            const tail = linkedDeals || linkedActs
+              ? `\n\n연결된 영업기회 ${linkedDeals}건, 활동 ${linkedActs}건의 거래처 연결이 끊깁니다.`
+              : ''
+            if (!window.confirm(`'${editing.name}' 거래처를 삭제할까요? 되돌릴 수 없습니다.${tail}`)) return
             await removeCustomer(editing.id)
             notify('거래처를 삭제했습니다.')
             setEditing(null)

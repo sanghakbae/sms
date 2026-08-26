@@ -2,8 +2,10 @@
 // 클라이언트가 바꿀 수 없는 값(Firebase Auth 토큰의 email)만 신뢰한다.
 // firestore.rules 의 isMember()·isAdmin() 과 반드시 같은 규칙을 유지할 것.
 
-// 이 도메인 계정이면 팀원으로 인정한다.
-export const ALLOWED_DOMAINS = ['muhayu.com']
+// 허용 도메인 목록. 비어 있으면 도메인을 제한하지 않고,
+// 로그인한 Google 계정이면 누구나 팀원으로 인정한다.
+// 다시 특정 도메인만 허용하려면 예: ['muhayu.com'] 처럼 채운다.
+export const ALLOWED_DOMAINS = []
 
 // 팀장(관리자) 이메일 — 목표 설정·전체 수정 권한.
 export const ADMIN_EMAILS = ['qa@muhayu.com']
@@ -14,7 +16,9 @@ function domainOf(email) {
 
 export function isAllowedEmail(email) {
   const e = String(email || '').toLowerCase()
+  if (!e) return false
   if (ADMIN_EMAILS.includes(e)) return true
+  if (ALLOWED_DOMAINS.length === 0) return true // 도메인 제한 없음
   return ALLOWED_DOMAINS.includes(domainOf(e))
 }
 

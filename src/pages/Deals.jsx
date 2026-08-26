@@ -11,29 +11,63 @@ export default function Deals() {
   const { deals, customers, user, addDeal, updateDeal, removeDeal, notify } = useApp()
   const [editing, setEditing] = useState(null) // null | 'new' | deal
   const [ownerFilter, setOwnerFilter] = useState('all') // 'all' | 'mine'
+  const [q, setQ] = useState('')
+  // 실패 딜은 기본 보드에서 빠진다. 켜야만 열이 생기고 열람·수정할 수 있다.
+  const [showLost, setShowLost] = useState(false)
 
-  const visible = useMemo(
-    () => (ownerFilter === 'mine' ? deals.filter((d) => d.owner === user.uid) : deals),
-    [deals, ownerFilter, user],
-  )
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    return deals.filter((d) => {
+      if (ownerFilter === 'mine' && d.owner !== user.uid) return false
+      if (!needle) return true
+      return [d.title, d.customerName, d.ownerName, d.memo].some((v) =>
+        String(v || '').toLowerCase().includes(needle))
+    })
+  }, [deals, ownerFilter, user, q])
+
+  const lostCount = useMemo(() => visible.filter((d) => d.stage === 'lost').length, [visible])
 
   const columns = useMemo(() => {
-    const map = new Map(BOARD_STAGES.map((s) => [s.id, []]))
+    const shown = showLost ? STAGES : BOARD_STAGES
+    const map = new Map(shown.map((s) => [s.id, []]))
     for (const d of visible) {
       if (map.has(d.stage)) map.get(d.stage).push(d)
     }
-    return BOARD_STAGES.map((s) => ({ stage: s, items: map.get(s.id) }))
-  }, [visible])
+    return shown.map((s) => ({ stage: s, items: map.get(s.id) }))
+  }, [visible, showLost])
+
+  const lostStage = getStage('lost')
 
   return (
     <main className="page deals">
+      <div className="toolbar">
+        <input
+          className="search"
+          placeholder="영업기회·거래처·담당자 검색"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button type="button" className="primary" onClick={() => setEditing('new')}>+ 영업기회</button>
+      </div>
+
       <div className="toolbar">
         <div className="seg">
           <button type="button" className={ownerFilter === 'all' ? 'on' : ''} onClick={() => setOwnerFilter('all')}>전체</button>
           <button type="button" className={ownerFilter === 'mine' ? 'on' : ''} onClick={() => setOwnerFilter('mine')}>내 딜</button>
         </div>
-        <button type="button" className="primary" onClick={() => setEditing('new')}>+ 영업기회</button>
+        <div className="chips grow">
+          <button
+            type="button"
+            className={`chip${showLost ? ' on' : ''}`}
+            style={{ '--c': lostStage.color }}
+            onClick={() => setShowLost((v) => !v)}
+          >실패 {lostCount}건</button>
+        </div>
       </div>
+
+      {visible.length === 0 && (
+        <p className="empty">{q.trim() ? '검색 결과가 없습니다.' : '영업기회가 없습니다. 오른쪽 위 버튼으로 추가하세요.'}</p>
+      )}
 
       <div className="board">
         {columns.map(({ stage, items }) => {
@@ -68,6 +102,7 @@ export default function Deals() {
             setEditing(null)
           }}
           onDelete={async () => {
+            if (!window.confirm(`'${editing.title}' 영업기회를 삭제할까요? 되돌릴 수 없습니다.`)) return
             await removeDeal(editing.id)
             notify('영업기회를 삭제했습니다.')
             setEditing(null)

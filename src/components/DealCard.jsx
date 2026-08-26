@@ -1,13 +1,11 @@
 import { compactWon, formatDate, relativeDay } from '../lib/format.js'
 import { getStage, stageProbability } from '../lib/pipeline.js'
+import { isOverdue } from '../lib/stats.js'
 
 /** 파이프라인 보드/목록에 쓰는 딜 카드. */
 export default function DealCard({ deal, onClick }) {
   const prob = stageProbability(deal.stage)
-  const overdue =
-    !getStage(deal.stage).closed &&
-    deal.expectedClose &&
-    new Date(deal.expectedClose) < new Date(new Date().toISOString().slice(0, 10))
+  const overdue = isOverdue(deal)
 
   return (
     <button type="button" className="deal-card" onClick={onClick}>
