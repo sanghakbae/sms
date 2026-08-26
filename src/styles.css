@@ -963,3 +963,156 @@ input, select, textarea { font-family: inherit; }
   font-weight: 700;
 }
 .deal-card.lost .deal-service { background: #fee2e2; color: #b91c1c; }
+
+/* ---------------------------- 영업자별 목표 할당 ---------------------------- */
+.alloc-list { display: flex; flex-direction: column; }
+.alloc-row {
+  display: grid;
+  grid-template-columns: 36px minmax(100px, 1fr) 168px 128px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.alloc-row:last-child { border-bottom: 0; }
+.alloc-who { display: flex; flex-direction: column; min-width: 0; }
+.alloc-who b { font-size: 14px; }
+.alloc-who small { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+
+.alloc-input { display: flex; flex-direction: column; gap: 3px; }
+.alloc-input input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+  background: var(--surface);
+  font-size: 13.5px;
+  text-align: right;
+}
+.alloc-input input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+.alloc-input small { color: var(--muted); font-size: 11px; text-align: right; }
+
+.alloc-actual { display: flex; flex-direction: column; align-items: flex-end; }
+.alloc-actual b { font-size: 14px; color: var(--brand); }
+.alloc-actual small { color: var(--muted); font-size: 11px; }
+
+.alloc-total {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--muted);
+}
+.alloc-total b { color: var(--ink); font-weight: 800; }
+.alloc-total.ok { background: var(--brand-soft); color: var(--brand); }
+.alloc-total.ok b { color: var(--brand); }
+.alloc-total .over { color: var(--danger); font-weight: 700; }
+
+.alloc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.alloc-actions button {
+  min-height: var(--control-h);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.alloc-actions button:hover { background: var(--bg); }
+/* .alloc-actions button 이 .primary 보다 명시도가 높아 배경/글자색을 덮어쓴다.
+   그대로 두면 흰 배경에 흰 글씨가 되어 버튼이 사라진다. */
+.alloc-actions .primary {
+  margin-left: auto;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.alloc-actions .primary:hover { background: var(--brand-ink); }
+.alloc-actions .primary:disabled { opacity: 0.6; }
+
+.lb-row.me { background: var(--brand-soft); border-radius: var(--radius-sm); padding-left: 8px; padding-right: 8px; }
+
+@media (max-width: 700px) {
+  .alloc-row { grid-template-columns: 34px 1fr; row-gap: 8px; }
+  .alloc-input, .alloc-actual { grid-column: 1 / -1; }
+  .alloc-actual { align-items: flex-start; }
+  .alloc-input input, .alloc-input small { text-align: left; }
+}
+
+/* =============================== 모바일 정리 =============================== */
+
+/* 긴 계정명이 헤더를 잠식하지 않게. */
+.topbar .who {
+  min-width: 0;
+  max-width: 52%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 항목 단위로는 줄바꿈하되 단어 중간에서 끊기지 않게. */
+.hero-sub { flex-wrap: wrap; row-gap: 2px; }
+.hero-sub > * { white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .topbar { padding: 14px 16px; }
+  .topbar h1 { font-size: 18px; }
+  .page { padding: 14px; }
+  .err-strip { margin: 10px 14px 0; }
+
+  .hero { padding: 18px; gap: 14px; }
+  .hero-value { font-size: 34px; }
+  .hero-goal { padding: 14px; }
+
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat-card { padding: 14px; border-radius: var(--radius); }
+  .stat-value { font-size: 24px; }
+
+  .panel { padding: 16px; }
+
+  /* 퍼널 — 전환율 칸을 줄이고 막대에 자리를 준다. */
+  .fn-row { grid-template-columns: 38px 1fr 78px; gap: 8px; }
+  .fn-inline { font-size: 11px; padding-left: 8px; }
+  .fn-conv { font-size: 11px; }
+  .fn-track { height: 28px; }
+
+  /* 대시보드 목록 — 금액이 잘리지 않게 두 줄 허용. */
+  .md-row { align-items: flex-start; }
+  .md-main b { white-space: normal; }
+
+  .lb-row { grid-template-columns: 20px 1fr auto; gap: 8px; }
+  .lb-num small { font-size: 10.5px; }
+
+  /* 탭바 6개 — 글자와 여백을 줄여 한 줄에 담는다. */
+  .tabbar button { font-size: 10px; gap: 2px; padding: 0 2px; }
+  .tabbar button .ico { font-size: 18px; }
+
+  /* 팀 관리 — 숫자 묶음이 넘치지 않게. */
+  .team-nums { gap: 10px 14px; }
+  .ys-top { font-size: 12.5px; }
+  .month-grid { gap: 5px; }
+  .mg-bar { height: 44px; }
+  .mg-amount { font-size: 10px; }
+
+  .modal-body { padding-left: 16px; padding-right: 16px; }
+  .grid2 { grid-template-columns: 1fr; }
+
+  /* 툴바가 좁아 세그먼트 글자가 '전 체' 처럼 끊겼다. */
+  .toolbar { flex-wrap: wrap; }
+  .seg button { white-space: nowrap; padding: 9px 12px; }
+  /* 드래그 안내는 터치 화면에서 의미가 옅고 자리를 많이 먹는다. */
+  .toolbar .hint { display: none; }
+}
+
+/* 아주 좁은 화면 */
+@media (max-width: 380px) {
+  .stat-value { font-size: 21px; }
+  .hero-value { font-size: 30px; }
+  .tabbar button { font-size: 9.5px; }
+}

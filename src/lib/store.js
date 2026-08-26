@@ -225,6 +225,36 @@ export async function setServices(items) {
   await setDoc(doc(db, collectionName('settings'), 'services'), { items: clean }, { merge: true })
 }
 
+/** 영업자별 목표 할당(settings/ownerTargets). { 'YYYY': { 이메일: 금액 } } */
+export function subscribeOwnerTargets(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData({})
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'ownerTargets')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? snap.data() : {}),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setOwnerTargets(year, allocation) {
+  assertConfigured()
+  const clean = {}
+  for (const [email, amount] of Object.entries(allocation || {})) {
+    const key = normalizeEmail(email)
+    const value = Number(amount) || 0
+    if (key && value > 0) clean[key] = value
+  }
+  // 그 해 전체를 통째로 덮어쓴다 — 0으로 지운 항목이 남지 않도록.
+  await setDoc(
+    doc(db, collectionName('settings'), 'ownerTargets'),
+    { [String(year)]: clean },
+    { merge: true },
+  )
+}
+
 /** 연 매출목표. settings/targets 문서에 'YYYY' 키로 저장한다. */
 export async function setYearlyTarget(year, amount) {
   assertConfigured()

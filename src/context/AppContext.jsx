@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   addActivity,
   addCustomer,
@@ -9,6 +9,7 @@ import {
   removeCustomer,
   removeDeal,
   setAdmins,
+  setOwnerTargets,
   setServices,
   setYearlyTarget,
   signInWithGoogle,
@@ -16,6 +17,7 @@ import {
   subscribeActivities,
   subscribeAdmins,
   subscribeCustomers,
+  subscribeOwnerTargets,
   subscribeServices,
   subscribeDeals,
   subscribeTargets,
@@ -23,8 +25,10 @@ import {
   updateDeal,
 } from '../lib/store.js'
 import { isAdminEmail } from '../lib/accounts.js'
+import { Ctx, useApp } from './ctx.js'
 
-const Ctx = createContext(null)
+// 기존 import 경로를 유지하기 위해 다시 내보낸다.
+export { useApp }
 
 function readError(err) {
   if (err?.code === 'permission-denied') return '권한이 없어 데이터를 읽지 못했습니다.'
@@ -35,6 +39,7 @@ export function AppProvider({ children }) {
   const [authUser, setAuthUser] = useState(null)
   const [admins, setAdminList] = useState([])
   const [services, setServiceList] = useState([])
+  const [ownerTargets, setOwnerTargetMap] = useState({})
   const [authReady, setAuthReady] = useState(false)
   const [customers, setCustomers] = useState([])
   const [deals, setDeals] = useState([])
@@ -57,6 +62,7 @@ export function AppProvider({ children }) {
       setTargets({})
       setAdminList([])
       setServiceList([])
+      setOwnerTargetMap({})
     }
   }), [])
 
@@ -92,6 +98,7 @@ export function AppProvider({ children }) {
       subscribeTargets(onData('targets', setTargets), onErr('targets')),
       subscribeAdmins(onData('admins', setAdminList), onErr('admins')),
       subscribeServices(onData('services', setServiceList), onErr('services')),
+      subscribeOwnerTargets(onData('ownerTargets', setOwnerTargetMap), onErr('ownerTargets')),
     ]
     return () => unsubs.forEach((fn) => fn())
   }, [authUser, retry])
@@ -127,6 +134,7 @@ export function AppProvider({ children }) {
     removeActivity,
     setYearlyTarget,
     setAdmins,
+    setOwnerTargets,
     setServices,
   }), [user])
 
@@ -140,6 +148,7 @@ export function AppProvider({ children }) {
     targets,
     admins,
     services,
+    ownerTargets,
     dataError,
     retryData,
     toast,
@@ -147,13 +156,7 @@ export function AppProvider({ children }) {
     login,
     logout,
     ...actions,
-  }), [user, authReady, customers, deals, activities, targets, admins, services, dataError, retryData, toast, notify, login, logout, actions])
+  }), [user, authReady, customers, deals, activities, targets, admins, services, ownerTargets, dataError, retryData, toast, notify, login, logout, actions])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
-}
-
-export function useApp() {
-  const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useApp must be used within AppProvider')
-  return ctx
 }

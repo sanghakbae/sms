@@ -6,10 +6,12 @@ import {
   pipelineSummary,
   stageBreakdown,
   winRate,
-  ownerLeaderboard,
   targetProgress,
   closedMonth,
   isOverdue,
+  teamSummary,
+  allocationSummary,
+  yearlyWon,
 } from '../src/lib/stats.js'
 
 const DEALS = [
@@ -51,15 +53,6 @@ test('winRate: 수주/(수주+실패)', () => {
   // 수주 2건, 실패 1건 → 67%
   assert.equal(winRate(DEALS), 67)
   assert.equal(winRate([]), null)
-})
-
-test('ownerLeaderboard: 이번 달 수주액 기준 정렬', () => {
-  const board = ownerLeaderboard(DEALS, '2026-08')
-  assert.equal(board[0].key, 'kim@muhayu.com')
-  assert.equal(board[0].wonAmount, 1000000)
-  const lee = board.find((r) => r.key === 'lee@muhayu.com')
-  assert.equal(lee.openAmount, 8000000)
-  assert.equal(lee.openCount, 2)
 })
 
 test('targetProgress: 달성률(%)과 목표 0 처리', () => {
@@ -124,4 +117,51 @@ test('수주 단계라도 lost 플래그가 있으면 수주가 아니다', () =
   assert.equal(monthlyWon(deals, '2026-08').amount, 5000)
   assert.equal(monthlyWon(deals, '2026-08').count, 1)
   assert.equal(winRate(deals), 50)
+})
+
+test('yearlyWon: 그 해 수주만 합산한다', () => {
+  const deals = [
+    { stage: 'won', amount: 1000, closedDate: '2026-03-01' },
+    { stage: 'won', amount: 2000, closedDate: '2026-11-30' },
+    { stage: 'won', amount: 9000, closedDate: '2025-12-31' },
+    { stage: 'won', amount: 5000, closedDate: '2026-06-01', lost: true },
+  ]
+  assert.equal(yearlyWon(deals, '2026').amount, 3000)
+  assert.equal(yearlyWon(deals, '2026').count, 2)
+  assert.equal(yearlyWon(deals, '2025').amount, 9000)
+})
+
+test('teamSummary: 그 해 누적 수주를 담당자별로 센다', () => {
+  const deals = [
+    { stage: 'won', amount: 1000, closedDate: '2026-08-01', owner: 'u1', ownerEmail: 'a@x.com', ownerName: 'A' },
+    { stage: 'won', amount: 3000, closedDate: '2026-02-01', owner: 'u1', ownerEmail: 'a@x.com', ownerName: 'A' },
+    { stage: 'won', amount: 7000, closedDate: '2025-02-01', owner: 'u1', ownerEmail: 'a@x.com', ownerName: 'A' },
+  ]
+  const [a] = teamSummary(deals, [], [], '2026-08')
+  assert.equal(a.wonAmount, 1000)       // 이번 달
+  assert.equal(a.yearWonAmount, 4000)   // 올해 누적, 작년은 제외
+  assert.equal(a.yearWonCount, 2)
+})
+
+test('allocationSummary: 미할당·초과·목록 밖 할당을 정확히 센다', () => {
+  const team = [
+    { key: 'a@x.com', email: 'a@x.com', name: 'A', yearWonAmount: 5000, yearWonCount: 1 },
+    { key: 'b@x.com', email: 'b@x.com', name: 'B', yearWonAmount: 0, yearWonCount: 0 },
+  ]
+  // 팀 목표 10000 중 6000 만 할당 → 4000 미할당
+  const under = allocationSummary(team, { 'a@x.com': 4000, 'b@x.com': 2000 }, 10000)
+  assert.equal(under.allocated, 6000)
+  assert.equal(under.unallocated, 4000)
+  assert.equal(under.rows[0].progress, 125)   // 5000 / 4000
+  assert.equal(under.rows[1].gap, 2000)
+
+  // 초과 할당은 음수로 나온다.
+  const over = allocationSummary(team, { 'a@x.com': 9000, 'b@x.com': 3000 }, 10000)
+  assert.equal(over.unallocated, -2000)
+
+  // 팀원 목록에 없는 계정의 할당도 합계에 포함돼야 총액이 맞는다.
+  const orphan = allocationSummary(team, { 'a@x.com': 4000, 'gone@x.com': 1000 }, 10000)
+  assert.equal(orphan.orphan, 1000)
+  assert.equal(orphan.allocated, 5000)
+  assert.equal(orphan.unallocated, 5000)
 })

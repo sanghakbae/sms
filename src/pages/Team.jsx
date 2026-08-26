@@ -4,7 +4,7 @@ import {
   compactWon, daysLeftInYear, formatWon, monthKey, monthLabel, yearKey, yearLabel,
 } from '../lib/format.js'
 import {
-  monthlySeries, targetProgress, teamSummary, yearlyWon, yearsWithData,
+  allocationSummary, monthlySeries, targetProgress, teamSummary, yearlyWon, yearsWithData,
 } from '../lib/stats.js'
 import { getActivityType, getGrade, getStage } from '../lib/pipeline.js'
 import {
@@ -19,12 +19,17 @@ import { downloadCsv, toCsv } from '../lib/csv.js'
 
 /** 관리자 전용 화면 — 팀원 현황, 관리자 명단, 데이터 내보내기. */
 export default function Team() {
-  const { deals, customers, activities, admins, targets, user, setAdmins, setYearlyTarget, notify } = useApp()
+  const {
+    deals, customers, activities, admins, targets, ownerTargets,
+    user, setAdmins, setYearlyTarget, setOwnerTargets, notify,
+  } = useApp()
   const month = monthKey()
   const team = useMemo(
     () => teamSummary(deals, customers, activities, month),
     [deals, customers, activities, month],
   )
+  const yearAlloc = (ownerTargets && ownerTargets[yearKey()]) || {}
+  const allocOf = (email) => Number(yearAlloc[email]) || 0
 
   return (
     <main className="page">
@@ -32,6 +37,14 @@ export default function Team() {
         deals={deals}
         targets={targets}
         setYearlyTarget={setYearlyTarget}
+        notify={notify}
+      />
+
+      <OwnerAllocation
+        team={team}
+        targets={targets}
+        ownerTargets={ownerTargets}
+        setOwnerTargets={setOwnerTargets}
         notify={notify}
       />
 
@@ -54,6 +67,9 @@ export default function Team() {
                 <span><i>진행중</i><b>{compactWon(m.openAmount)}</b><small>{m.openCount}건</small></span>
                 <span><i>지연</i><b className={m.overdueCount ? 'warn' : ''}>{m.overdueCount}건</b><small>마감 초과</small></span>
                 <span><i>실패</i><b>{m.lostCount}건</b><small>회고 대상</small></span>
+                <span><i>연 목표</i><b>{allocOf(m.email) ? compactWon(allocOf(m.email)) : '—'}</b>
+                  <small>{allocOf(m.email) ? `달성 ${targetProgress(m.yearWonAmount, allocOf(m.email))}%` : '미할당'}</small>
+                </span>
                 <span><i>거래처·활동</i><b>{m.customerCount}·{m.activityCount}</b><small>등록 건수</small></span>
               </div>
             </div>
@@ -155,6 +171,133 @@ function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
           </div>
         ))}
       </div>
+    </section>
+  )
+}
+
+/* ------------------------------ 영업자별 목표 할당 ------------------------------ */
+
+/** 팀 연 목표를 영업자에게 나눠준다. 합계가 팀 목표와 맞는지 항상 보여준다. */
+function OwnerAllocation({ team, targets, ownerTargets, setOwnerTargets, notify }) {
+  const year = yearKey()
+  const teamTarget = Number(targets[year]) || 0
+  const saved = useMemo(() => (ownerTargets && ownerTargets[year]) || {}, [ownerTargets, year])
+
+  // 입력 중인 값. 저장 전까지는 화면에서만 들고 있는다.
+  const [draft, setDraft] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const current = useMemo(() => {
+    if (draft) return draft
+    const out = {}
+    for (const m of team) out[m.email] = saved[m.email] ? String(saved[m.email]) : ''
+    return out
+  }, [draft, team, saved])
+
+  const parsed = useMemo(() => {
+    const out = {}
+    for (const [email, v] of Object.entries(current)) {
+      out[email] = Number(String(v).replace(/[^0-9]/g, '')) || 0
+    }
+    return out
+  }, [current])
+
+  const summary = useMemo(
+    () => allocationSummary(team, parsed, teamTarget),
+    [team, parsed, teamTarget],
+  )
+
+  const set = (email) => (e) => setDraft({ ...current, [email]: e.target.value })
+
+  // 남은 금액을 인원수로 똑같이 나눠 채워준다. 손으로 계산하지 않게.
+  const splitEvenly = () => {
+    if (!teamTarget || team.length === 0) return
+    const each = Math.floor(teamTarget / team.length)
+    const next = {}
+    team.forEach((m, i) => {
+      // 나머지는 첫 사람이 떠안는다 — 합계가 목표와 정확히 맞아야 하므로.
+      next[m.email] = String(i === 0 ? teamTarget - each * (team.length - 1) : each)
+    })
+    setDraft(next)
+  }
+
+  const save = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await setOwnerTargets(year, parsed)
+      notify(`${yearLabel(year)} 영업자별 목표를 저장했습니다.`)
+      setDraft(null)
+    } finally { setBusy(false) }
+  }
+
+  if (team.length === 0) return null
+
+  return (
+    <section className="panel">
+      <h3>영업자별 목표 할당 · {yearLabel(year)}</h3>
+      {teamTarget === 0 && (
+        <p className="hint">먼저 위에서 <b>연 매출목표</b>를 정하면 할당 잔액을 계산해 드립니다.</p>
+      )}
+
+      <form onSubmit={save}>
+        <div className="alloc-list">
+          {summary.rows.map((r) => (
+            <div className="alloc-row" key={r.key}>
+              <span className="avatar">{initial(r.name)}</span>
+              <div className="alloc-who">
+                <b>{r.name}</b>
+                <small>{r.email || '이메일 없음'}</small>
+              </div>
+              <div className="alloc-input">
+                <input
+                  value={current[r.email] ?? ''}
+                  onChange={set(r.email)}
+                  placeholder="0"
+                  inputMode="numeric"
+                  aria-label={`${r.name} 목표 금액`}
+                />
+                <small>{r.target > 0 ? compactWon(r.target) : '미할당'}</small>
+              </div>
+              <div className="alloc-actual">
+                <b>{compactWon(r.yearWonAmount)}</b>
+                <small>
+                  {r.progress != null
+                    ? `달성 ${r.progress}%`
+                    : `${r.yearWonCount}건 수주`}
+                </small>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className={`alloc-total${summary.unallocated === 0 ? ' ok' : ''}`}>
+          <span>
+            할당 합계 <b>{compactWon(summary.allocated)}</b>
+            {teamTarget > 0 && <> / 팀 목표 {compactWon(teamTarget)}</>}
+          </span>
+          {teamTarget > 0 && (
+            <span className={summary.unallocated < 0 ? 'over' : ''}>
+              {summary.unallocated === 0
+                ? '정확히 맞음'
+                : summary.unallocated > 0
+                  ? `미할당 ${compactWon(summary.unallocated)}`
+                  : `초과 ${compactWon(-summary.unallocated)}`}
+            </span>
+          )}
+        </div>
+        {summary.orphan > 0 && (
+          <small className="hint">
+            현재 팀원 목록에 없는 계정에 {compactWon(summary.orphan)} 이 할당돼 있습니다(합계에 포함).
+          </small>
+        )}
+
+        <div className="alloc-actions">
+          <button type="button" onClick={splitEvenly} disabled={!teamTarget}>균등 배분</button>
+          {draft && <button type="button" onClick={() => setDraft(null)}>되돌리기</button>}
+          <button type="submit" className="primary" disabled={busy}>할당 저장</button>
+        </div>
+      </form>
     </section>
   )
 }

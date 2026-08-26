@@ -10,17 +10,17 @@ import {
   monthOverMonth,
   monthlyWon,
   overdueDeals,
-  ownerLeaderboard,
   pipelineSummary,
   stageFunnel,
   targetProgress,
+  teamSummary,
   winRate,
   yearlyWon,
 } from '../lib/stats.js'
 import { initial } from '../lib/accounts.js'
 
 export default function Dashboard() {
-  const { deals, customers, activities, targets } = useApp()
+  const { deals, customers, activities, targets, ownerTargets, user } = useApp()
   const month = monthKey()
   const year = yearKey()
 
@@ -29,7 +29,8 @@ export default function Dashboard() {
   const pipe = useMemo(() => pipelineSummary(deals), [deals])
   const funnel = useMemo(() => stageFunnel(deals), [deals])
   const rate = useMemo(() => winRate(deals), [deals])
-  const board = useMemo(() => ownerLeaderboard(deals, month), [deals, month])
+  const board = useMemo(() => teamSummary(deals, customers, activities, month), [deals, customers, activities, month])
+  const yearAlloc = useMemo(() => (ownerTargets && ownerTargets[year]) || {}, [ownerTargets, year])
   const mom = useMemo(() => monthOverMonth(deals, month), [deals, month])
   const overdue = useMemo(() => overdueDeals(deals), [deals])
   const soon = useMemo(() => closingSoon(deals, 30), [deals])
@@ -139,16 +140,25 @@ export default function Dashboard() {
           <h3>담당자별 실적 · {monthLabel(month)}</h3>
           {board.length === 0 && <p className="empty">데이터가 없습니다.</p>}
           <div className="leaderboard">
-            {board.map((row, i) => (
-              <div className="lb-row" key={row.key}>
-                <span className="lb-rank">{i + 1}</span>
-                <span className="lb-who">{row.name}</span>
-                <span className="lb-num">
-                  <b>{compactWon(row.wonAmount)}</b>
-                  <small>{row.wonCount}건 수주 · 진행 {row.openCount}건</small>
-                </span>
-              </div>
-            ))}
+            {board.map((row, i) => {
+              const alloc = Number(yearAlloc[row.email]) || 0
+              const pct = targetProgress(row.yearWonAmount, alloc)
+              const me = row.email === user.email
+              return (
+                <div className={`lb-row${me ? ' me' : ''}`} key={row.key}>
+                  <span className="lb-rank">{i + 1}</span>
+                  <span className="lb-who">{row.name}</span>
+                  <span className="lb-num">
+                    <b>{compactWon(row.wonAmount)}</b>
+                    <small>
+                      {alloc > 0
+                        ? `연 ${compactWon(row.yearWonAmount)} / ${compactWon(alloc)} · ${pct}%`
+                        : `${row.wonCount}건 수주 · 진행 ${row.openCount}건`}
+                    </small>
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </section>
 

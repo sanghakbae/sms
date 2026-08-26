@@ -66,33 +66,6 @@ export function winRate(deals) {
   return closed === 0 ? null : Math.round((won / closed) * 100)
 }
 
-/**
- * 담당자별 실적표. 이번 달 수주액 기준 내림차순.
- * 딜에 저장된 ownerEmail/ownerName 으로 집계한다(없으면 owner uid 로 폴백).
- */
-export function ownerLeaderboard(deals, month) {
-  const rows = new Map()
-  for (const d of deals) {
-    const key = d.ownerEmail || d.owner || '?'
-    const base = rows.get(key) || {
-      key,
-      name: d.ownerName || d.ownerEmail || '알수없음',
-      wonAmount: 0, wonCount: 0, openAmount: 0, openCount: 0,
-    }
-    const amount = Number(d.amount) || 0
-    if (isDealWon(d) && closedMonth(d) === month) {
-      base.wonAmount += amount
-      base.wonCount += 1
-    } else if (isDealOpen(d)) {
-      base.openAmount += amount
-      base.openCount += 1
-    }
-    if (d.ownerName) base.name = d.ownerName
-    rows.set(key, base)
-  }
-  return [...rows.values()].sort((a, b) => b.wonAmount - a.wonAmount || b.openAmount - a.openAmount)
-}
-
 /** 목표 대비 달성률(%). 목표가 0이면 null. */
 export function targetProgress(wonAmount, targetAmount) {
   const t = Number(targetAmount) || 0
@@ -126,6 +99,7 @@ export function teamSummary(deals, customers, activities, month) {
         email: doc.ownerEmail || '',
         name: doc.ownerName || doc.ownerEmail || '알수없음',
         dealCount: 0, wonAmount: 0, wonCount: 0,
+        yearWonAmount: 0, yearWonCount: 0,
         openAmount: 0, openCount: 0, overdueCount: 0, lostCount: 0,
         customerCount: 0, activityCount: 0,
       })
@@ -137,10 +111,16 @@ export function teamSummary(deals, customers, activities, month) {
     return row
   }
 
+  const year = String(month || '').slice(0, 4)
   for (const d of deals || []) {
     const row = touch(d)
     row.dealCount += 1
     const amount = Number(d.amount) || 0
+    // 연 목표 대비 진도를 보려면 그 해 누적도 따로 세야 한다.
+    if (isDealWon(d) && closedMonth(d).slice(0, 4) === year) {
+      row.yearWonAmount += amount
+      row.yearWonCount += 1
+    }
     if (isDealWon(d) && closedMonth(d) === month) {
       row.wonAmount += amount
       row.wonCount += 1
@@ -233,4 +213,34 @@ export function stageFunnel(deals) {
       ? Math.round((reached[i + 1] / reached[i]) * 100)
       : null,
   }))
+}
+
+/**
+ * 영업자별 목표 할당 현황.
+ * allocation 은 { 이메일: 금액 } 이고, 팀 목표와의 차이(미할당/초과)도 같이 돌려준다.
+ */
+export function allocationSummary(team, allocation, teamTarget) {
+  const map = allocation || {}
+  const rows = (team || []).map((m) => {
+    const target = Number(map[m.email]) || 0
+    return {
+      ...m,
+      target,
+      progress: targetProgress(m.yearWonAmount, target),
+      gap: Math.max(0, target - m.yearWonAmount),
+    }
+  })
+  const allocated = rows.reduce((s, r) => s + r.target, 0)
+  // 팀원 목록에 없는 이메일에 남아 있는 할당까지 합산해야 총액이 맞는다.
+  const known = new Set(rows.map((r) => r.email))
+  const orphan = Object.entries(map)
+    .filter(([email]) => !known.has(email))
+    .reduce((s, [, v]) => s + (Number(v) || 0), 0)
+  const total = allocated + orphan
+  return {
+    rows,
+    allocated: total,
+    orphan,
+    unallocated: (Number(teamTarget) || 0) - total,
+  }
 }
