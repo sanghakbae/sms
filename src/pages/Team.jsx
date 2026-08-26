@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { compactWon, monthKey, monthLabel, shiftMonth } from '../lib/format.js'
-import { monthlyWon, targetProgress, teamSummary } from '../lib/stats.js'
+import {
+  compactWon, daysLeftInYear, formatWon, monthKey, monthLabel, yearKey, yearLabel,
+} from '../lib/format.js'
+import {
+  monthlySeries, targetProgress, teamSummary, yearlyWon, yearsWithData,
+} from '../lib/stats.js'
 import { getActivityType, getGrade, getStage } from '../lib/pipeline.js'
 import {
   BOOTSTRAP_ADMINS,
@@ -15,7 +19,7 @@ import { downloadCsv, toCsv } from '../lib/csv.js'
 
 /** 관리자 전용 화면 — 팀원 현황, 관리자 명단, 데이터 내보내기. */
 export default function Team() {
-  const { deals, customers, activities, admins, targets, user, setAdmins, setMonthlyTarget, notify } = useApp()
+  const { deals, customers, activities, admins, targets, user, setAdmins, setYearlyTarget, notify } = useApp()
   const month = monthKey()
   const team = useMemo(
     () => teamSummary(deals, customers, activities, month),
@@ -27,7 +31,7 @@ export default function Team() {
       <TeamTarget
         deals={deals}
         targets={targets}
-        setMonthlyTarget={setMonthlyTarget}
+        setYearlyTarget={setYearlyTarget}
         notify={notify}
       />
 
@@ -66,78 +70,90 @@ export default function Team() {
 
 /* ------------------------------- 팀 목표(수주액) ------------------------------- */
 
-function TeamTarget({ deals, targets, setMonthlyTarget, notify }) {
-  const [month, setMonth] = useState(monthKey())
+function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
+  const [year, setYear] = useState(yearKey())
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // 이번 달부터 앞뒤로 다룰 수 있게 — 지난달 마감 정정과 다음 분기 계획을 함께.
-  const months = useMemo(() => {
-    const base = monthKey()
-    return [3, 2, 1, 0, -1, -2].map((d) => shiftMonth(base, d)).reverse()
-  }, [])
-
-  const current = Number(targets[month]) || 0
-  const won = useMemo(() => monthlyWon(deals, month), [deals, month])
-  const progress = targetProgress(won.amount, current)
+  const years = useMemo(() => yearsWithData(deals), [deals])
+  const target = Number(targets[year]) || 0
+  const won = useMemo(() => yearlyWon(deals, year), [deals, year])
+  const progress = targetProgress(won.amount, target)
+  const series = useMemo(() => monthlySeries(deals, year), [deals, year])
+  const maxMonth = Math.max(1, ...series.map((m) => m.amount))
+  const remain = Math.max(0, target - won.amount)
+  const typed = Number(String(amount).replace(/[^0-9]/g, '')) || 0
+  const isThisYear = year === yearKey()
 
   const save = async (e) => {
     e.preventDefault()
-    const next = Number(String(amount).replace(/[^0-9]/g, ''))
-    if (!Number.isFinite(next) || next < 0) { notify('금액을 확인해주세요.'); return }
+    if (String(amount).trim() === '') { notify('금액을 입력해주세요.'); return }
     setBusy(true)
     try {
-      await setMonthlyTarget(month, next)
-      notify(`${monthLabel(month)} 목표를 ${compactWon(next)} 로 저장했습니다.`)
+      await setYearlyTarget(year, typed)
+      notify(`${yearLabel(year)} 목표를 ${compactWon(typed)} 로 저장했습니다.`)
       setAmount('')
     } finally { setBusy(false) }
   }
 
   return (
     <section className="panel">
-      <h3>팀 매출목표</h3>
+      <h3>연 매출목표</h3>
       <form onSubmit={save} className="form">
         <div className="grid2">
-          <label className="field"><span>월</span>
-            <select value={month} onChange={(e) => setMonth(e.target.value)}>
-              {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+          <label className="field"><span>연도</span>
+            <select value={year} onChange={(e) => setYear(e.target.value)}>
+              {years.map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
             </select>
           </label>
-          <label className="field"><span>팀 목표 수주액(원)</span>
+          <label className="field"><span>연 목표 수주액(원)</span>
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={current ? String(current) : '300000000'}
+              placeholder={target ? String(target) : '3000000000'}
               inputMode="numeric"
             />
+            <small className={`amount-preview${typed ? '' : ' zero'}`}>
+              {String(amount).trim() === '' ? '숫자만 입력하세요' : `${formatWon(typed)} · ${compactWon(typed)}`}
+            </small>
           </label>
-        </div>
-        <div className="target-now">
-          {monthLabel(month)} 목표 <b>{current ? compactWon(current) : '미설정'}</b>
-          {' · '}수주 {compactWon(won.amount)}
-          {progress != null && <b className="pct"> ({progress}%)</b>}
         </div>
         <button type="submit" className="primary block" disabled={busy}>목표 저장</button>
       </form>
 
-      <div className="target-list">
-        {months.slice().reverse().map((m) => {
-          const t = Number(targets[m]) || 0
-          const w = monthlyWon(deals, m)
-          const p = targetProgress(w.amount, t)
-          return (
-            <div className="target-row" key={m}>
-              <span className="tr-month">{monthLabel(m)}</span>
-              {t > 0
-                ? <div className="tr-bar"><span style={{ width: `${Math.min(100, p ?? 0)}%` }} /></div>
-                : <span className="tr-none">목표 미설정</span>}
-              <span className="tr-num">
-                {compactWon(w.amount)} / {t ? compactWon(t) : '—'}
-                {p != null && <small> {p}%</small>}
-              </span>
+      {/* 연 목표 대비 현재 위치 */}
+      <div className="year-summary">
+        <div className="ys-top">
+          <span>{yearLabel(year)} 누적 수주 <b>{compactWon(won.amount)}</b> · {won.count}건</span>
+          <span>
+            목표 <b>{target ? compactWon(target) : '미설정'}</b>
+            {progress != null && <b className="pct"> {progress}%</b>}
+          </span>
+        </div>
+        {target > 0 && (
+          <>
+            <div className="goal-bar"><span style={{ width: `${Math.min(100, progress)}%` }} /></div>
+            <div className="ys-foot">
+              {remain > 0
+                ? `남은 ${compactWon(remain)}${isThisYear ? ` · ${daysLeftInYear()}일 남음` : ''}`
+                : '목표 달성'}
             </div>
-          )
-        })}
+          </>
+        )}
+      </div>
+
+      {/* 1~12월 실적 — 연 목표가 어떻게 쌓이는지 */}
+      <div className="month-grid">
+        {series.map((m) => (
+          <div className={`mg-cell${m.amount > 0 ? ' has' : ''}`} key={m.month}>
+            <span className="mg-month">{m.monthNo}월</span>
+            <div className="mg-bar">
+              <span style={{ height: `${(m.amount / maxMonth) * 100}%` }} />
+            </div>
+            <span className="mg-amount">{m.amount > 0 ? compactWon(m.amount) : '—'}</span>
+            <span className="mg-count">{m.count > 0 ? `${m.count}건` : ''}</span>
+          </div>
+        ))}
       </div>
     </section>
   )

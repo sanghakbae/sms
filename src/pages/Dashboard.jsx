@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import StatCard from '../components/StatCard.jsx'
 import {
-  compactWon, daysLeftInMonth, formatDate, formatWon,
-  monthKey, monthLabel, relativeDay,
+  compactWon, daysLeftInYear, formatDate, formatWon,
+  monthKey, monthLabel, relativeDay, yearKey, yearLabel,
 } from '../lib/format.js'
 import {
   closingSoon,
@@ -15,14 +15,17 @@ import {
   stageFunnel,
   targetProgress,
   winRate,
+  yearlyWon,
 } from '../lib/stats.js'
 import { initial } from '../lib/accounts.js'
 
 export default function Dashboard() {
   const { deals, customers, activities, targets } = useApp()
   const month = monthKey()
+  const year = yearKey()
 
   const won = useMemo(() => monthlyWon(deals, month), [deals, month])
+  const yearWon = useMemo(() => yearlyWon(deals, year), [deals, year])
   const pipe = useMemo(() => pipelineSummary(deals), [deals])
   const funnel = useMemo(() => stageFunnel(deals), [deals])
   const rate = useMemo(() => winRate(deals), [deals])
@@ -32,10 +35,11 @@ export default function Dashboard() {
   const soon = useMemo(() => closingSoon(deals, 30), [deals])
   const recent = useMemo(() => (activities || []).slice(0, 5), [activities])
 
-  const target = Number(targets[month]) || 0
-  const progress = targetProgress(won.amount, target)
-  const remain = Math.max(0, target - won.amount)
-  const daysLeft = daysLeftInMonth()
+  // 목표는 연 단위로 잡는다. 달성률도 올해 누적 기준.
+  const target = Number(targets[year]) || 0
+  const progress = targetProgress(yearWon.amount, target)
+  const remain = Math.max(0, target - yearWon.amount)
+  const daysLeft = daysLeftInYear()
   const openStages = funnel.filter((r) => !r.stage.closed)
   const maxReached = Math.max(1, ...funnel.map((r) => r.reached))
   const totalLost = funnel.reduce((s, r) => s + r.lostCount, 0)
@@ -45,10 +49,12 @@ export default function Dashboard() {
       {/* 이번 달 목표 — 대시보드에서 가장 먼저 답해야 할 질문. */}
       <section className="hero">
         <div className="hero-main">
-          <span className="hero-label">{monthLabel(month)} 수주</span>
-          <strong className="hero-value">{compactWon(won.amount)}</strong>
+          <span className="hero-label">{yearLabel(year)} 누적 수주</span>
+          <strong className="hero-value">{compactWon(yearWon.amount)}</strong>
           <span className="hero-sub">
-            {won.count}건 성사
+            {yearWon.count}건 성사
+            <em className="sep">·</em>
+            {monthLabel(month)} {compactWon(won.amount)}
             {mom != null && (
               <em className={mom >= 0 ? 'up' : 'down'}>
                 {mom >= 0 ? '▲' : '▼'} 전월 대비 {Math.abs(mom)}%
@@ -60,7 +66,7 @@ export default function Dashboard() {
         {target > 0 ? (
           <div className="hero-goal">
             <div className="goal-top">
-              <span>목표 {compactWon(target)}</span>
+              <span>{yearLabel(year)} 목표 {compactWon(target)}</span>
               <b>{progress}%</b>
             </div>
             <div className="goal-bar">
@@ -74,8 +80,8 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="hero-goal empty-goal">
-            <b>이번 달 목표가 없습니다</b>
-            <span>설정 → 월 매출목표에서 지정하면 달성률이 여기에 표시됩니다.</span>
+            <b>{yearLabel(year)} 목표가 없습니다</b>
+            <span>팀 관리 → 연 매출목표에서 지정하면 달성률이 여기에 표시됩니다.</span>
           </div>
         )}
       </section>

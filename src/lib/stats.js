@@ -1,6 +1,6 @@
 // 대시보드 집계 — 모두 순수 함수라 test/stats.test.js 로 검증한다.
 
-import { monthKey, shiftMonth, todayISO } from './format.js'
+import { monthKey, shiftMonth, todayISO, yearKey } from './format.js'
 import { STAGES, dealProbability, isDealLost, isDealOpen, isDealWon } from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
@@ -156,6 +156,35 @@ export function teamSummary(deals, customers, activities, month) {
   for (const a of activities || []) touch(a).activityCount += 1
 
   return [...rows.values()].sort((a, b) => b.wonAmount - a.wonAmount || b.openAmount - a.openAmount)
+}
+
+/** 한 해 동안 수주한 금액과 건수. 목표는 연 단위로 잡으므로 이게 기준 지표다. */
+export function yearlyWon(deals, year) {
+  const won = (deals || []).filter((d) => isDealWon(d) && closedMonth(d).slice(0, 4) === year)
+  return {
+    amount: won.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+    count: won.length,
+    deals: won,
+  }
+}
+
+/** 그 해 1~12월 수주액 시계열. 연 목표가 월별로 어떻게 쌓이는지 보려는 것. */
+export function monthlySeries(deals, year) {
+  return Array.from({ length: 12 }, (unused, i) => {
+    const key = `${year}-${String(i + 1).padStart(2, '0')}`
+    const w = monthlyWon(deals, key)
+    return { month: key, monthNo: i + 1, amount: w.amount, count: w.count }
+  })
+}
+
+/** 데이터에 등장하는 연도 목록(내림차순). 올해는 항상 포함한다. */
+export function yearsWithData(deals) {
+  const set = new Set([yearKey()])
+  for (const d of deals || []) {
+    const m = closedMonth(d)
+    if (m) set.add(m.slice(0, 4))
+  }
+  return [...set].sort().reverse()
 }
 
 /** 전월 대비 증감률(%). 지난달이 0이면 null(비교 불가). */

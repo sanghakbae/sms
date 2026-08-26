@@ -11,6 +11,23 @@ export function monthKey(iso) {
   return (iso || todayISO()).slice(0, 7)
 }
 
+/** 'YYYY' 형태의 연 키. 인자가 없으면 올해. */
+export function yearKey(iso) {
+  return (iso || todayISO()).slice(0, 4)
+}
+
+export function yearLabel(key) {
+  return `${key}년`
+}
+
+/** 연말까지 남은 일수. */
+export function daysLeftInYear(today = todayISO()) {
+  const [y, m, d] = String(today).split('-').map(Number)
+  const end = Date.UTC(y, 11, 31)
+  const now = Date.UTC(y, m - 1, d)
+  return Math.max(0, Math.round((end - now) / 86400000))
+}
+
 /** 'YYYY-MM' 을 delta 개월만큼 옮긴다. -1 이면 지난달. */
 export function shiftMonth(key, delta) {
   const [y, m] = String(key).split('-').map(Number)

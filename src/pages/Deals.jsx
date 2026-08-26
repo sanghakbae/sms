@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx'
 import Modal from '../components/Modal.jsx'
 import DealCard from '../components/DealCard.jsx'
 import { STAGES, getStage, isDealLost, isOpen } from '../lib/pipeline.js'
-import { compactWon, monthKey, todayISO } from '../lib/format.js'
+import { compactWon, formatWon, monthKey, todayISO } from '../lib/format.js'
 import { teamSummary } from '../lib/stats.js'
 
 const EMPTY = {
@@ -222,6 +222,8 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
   }
 
   const s = getStage(form.stage)
+  // 자릿수 실수를 눈으로 잡을 수 있게 입력값을 바로 읽어준다.
+  const amountTyped = Number(String(form.amount).replace(/[^0-9]/g, '')) || 0
 
   return (
     <Modal
@@ -251,6 +253,9 @@ function DealModal({ deal, customers, members, isAdmin, canDelete, onClose, onSa
           </label>
           <label className="field"><span>예상 금액(원)</span>
             <input value={form.amount} onChange={set('amount')} placeholder="5000000" inputMode="numeric" />
+            <small className={`amount-preview${amountTyped ? '' : ' zero'}`}>
+              {String(form.amount).trim() === '' ? '숫자만 입력하세요' : `${formatWon(amountTyped)} · ${compactWon(amountTyped)}`}
+            </small>
           </label>
         </div>
 

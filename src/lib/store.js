@@ -200,11 +200,13 @@ export async function setAdmins(emails) {
   await setDoc(doc(db, collectionName('settings'), 'admins'), { emails: clean }, { merge: true })
 }
 
-export async function setMonthlyTarget(month, amount) {
+/** 연 매출목표. settings/targets 문서에 'YYYY' 키로 저장한다. */
+export async function setYearlyTarget(year, amount) {
   assertConfigured()
   await setDoc(
     doc(db, collectionName('settings'), 'targets'),
-    { [month]: Number(amount) || 0 },
+    { [String(year)]: Number(amount) || 0 },
     { merge: true },
   )
 }
+

@@ -9,7 +9,7 @@ import {
   removeCustomer,
   removeDeal,
   setAdmins,
-  setMonthlyTarget,
+  setYearlyTarget,
   signInWithGoogle,
   signOutUser,
   subscribeActivities,
@@ -120,7 +120,7 @@ export function AppProvider({ children }) {
     removeDeal,
     addActivity: (data) => addActivity(user, data),
     removeActivity,
-    setMonthlyTarget,
+    setYearlyTarget,
     setAdmins,
   }), [user])
 

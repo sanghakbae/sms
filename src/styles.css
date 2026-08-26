@@ -489,14 +489,33 @@ input, select, textarea { font-family: inherit; }
 .target-now { font-size: 13.5px; color: var(--muted); }
 .target-now b { color: var(--ink); }
 .target-list { display: flex; flex-direction: column; gap: 10px; }
-.target-row { display: grid; grid-template-columns: 76px 1fr auto; align-items: center; gap: 10px; }
+.target-list { margin-top: 20px; border-top: 1px solid var(--line); }
+.target-row {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.target-row:last-child { border-bottom: 0; }
 .tr-month { font-size: 13px; font-weight: 700; }
-.tr-bar { height: 10px; background: var(--bg); border-radius: 6px; overflow: hidden; }
-.tr-bar span { display: block; height: 100%; background: var(--brand); border-radius: 6px; }
+.target-row.now .tr-month { color: var(--brand); }
+.tr-bar { height: 8px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.tr-bar span { display: block; height: 100%; background: var(--brand); border-radius: 999px; transition: width .3s ease; }
 .target-now .pct { color: var(--brand); }
-.panel .hint { display: block; margin: -6px 0 12px; color: var(--muted); font-size: 12.5px; }
+/* 패널 안 보조 문구. 음수 마진을 주면 이웃 요소와 겹친다 — 여백은 양수로만. */
+.panel .hint {
+  display: block;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+/* 제목 바로 아래 안내는 위쪽 여백만 줄인다. */
+.panel h3 + .hint { margin-top: 0; margin-bottom: 14px; }
 .tr-none { font-size: 12px; color: var(--muted); font-style: italic; }
-.tr-num { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.tr-num { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .tr-num small { color: var(--brand); font-weight: 700; }
 
 .foot-note { text-align: center; color: #94a3b8; font-size: 12px; margin: 8px 0 0; }
@@ -675,7 +694,8 @@ input, select, textarea { font-family: inherit; }
 .admin-mail { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .danger.ghost.sm { padding: 4px 10px; font-size: 12px; }
 
-.admin-add { display: flex; gap: 8px; }
+.admin-list { margin-bottom: 4px; }
+.admin-add { display: flex; gap: 8px; margin-top: 14px; }
 .admin-add input {
   flex: 1;
   min-height: var(--control-h);
@@ -686,6 +706,15 @@ input, select, textarea { font-family: inherit; }
   font-size: 14px;
 }
 .admin-add input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+
+.amount-preview {
+  display: block;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brand);
+}
+.amount-preview.zero { color: var(--muted); font-weight: 600; }
 
 .export-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .export-row button {
@@ -841,4 +870,75 @@ input, select, textarea { font-family: inherit; }
 
 @media (min-width: 860px) {
   .hero { grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); align-items: center; }
+}
+
+/* ---------------------------- 연 목표 · 월별 실적 ---------------------------- */
+.year-summary {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ys-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ys-top b { color: var(--ink); font-weight: 800; }
+.ys-top b.pct { color: var(--brand); }
+.ys-foot { font-size: 12.5px; color: var(--muted); }
+
+/* 1~12월 막대. 열 12개를 고정해 한 해가 한눈에 들어오게. */
+.month-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+.mg-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  min-width: 0;
+}
+.mg-cell.has { background: var(--brand-soft); }
+.mg-month { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.mg-cell.has .mg-month { color: var(--brand); }
+.mg-bar {
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.mg-bar span {
+  width: 60%;
+  min-height: 2px;
+  background: var(--line-strong);
+  border-radius: 4px 4px 0 0;
+  transition: height .3s ease;
+}
+.mg-cell.has .mg-bar span { background: var(--brand); }
+.mg-amount { font-size: 11px; font-weight: 800; color: var(--muted); }
+.mg-cell.has .mg-amount { color: var(--ink); }
+.mg-count { font-size: 10px; color: var(--muted); min-height: 12px; }
+
+.hero-sub em.sep { color: var(--line-strong); font-weight: 400; }
+
+/* 좁은 화면에서는 6열 두 줄로 접는다 — 12열은 글자가 뭉갠다. */
+@media (max-width: 720px) {
+  .month-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (max-width: 400px) {
+  .month-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
