@@ -20,7 +20,7 @@
 
   --control-h: 40px;
   --tabbar-h: 60px;
-  --sidebar-w: 240px;
+  --sidebar-w: 192px;   /* 240px 에서 20% 줄임 */
 }
 
 * { box-sizing: border-box; }
@@ -1088,6 +1088,17 @@ button.col-head {
 }
 
 /* =============================== 모바일 정리 =============================== */
+
+/* iOS 는 글자가 16px 보다 작은 입력칸에 포커스가 가면 화면을 자동으로 확대한다.
+   모달이 열리며 autoFocus 가 걸리면 그 즉시 확대돼 화면이 튄다.
+   선택자를 좁게 잡으면 나중에 추가되는 입력칸이 또 빠지므로 통째로 올린다.
+   확대 자체는 막지 않는다(user-scalable=no 는 접근성을 해친다). */
+@media (max-width: 719px) {
+  /* !important 가 필요하다 — .field input 같은 클래스 선택자가 더 강해서
+     그냥 두면 덮이고, 새 입력칸이 추가될 때마다 또 빠진다.
+     이건 화면 취향이 아니라 플랫폼 제약이라 전부 이겨야 한다. */
+  input, select, textarea { font-size: 16px !important; }
+}
 
 /* 긴 계정명이 헤더를 잠식하지 않게. */
 .topbar .who {
