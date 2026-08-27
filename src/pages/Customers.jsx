@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Modal from '../components/Modal.jsx'
 import MarkdownEditor from '../components/MarkdownEditor.jsx'
-import { GRADES, getGrade, getStage } from '../lib/pipeline.js'
+import { GRADES, INDUSTRIES, INDUSTRY_GROUPS, getGrade, getStage } from '../lib/pipeline.js'
 import { customerHistory, settlementColor, settlementLabel } from '../lib/settlement.js'
 import { compactWon, formatDate } from '../lib/format.js'
 
@@ -161,12 +161,28 @@ function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }
         </label>
         <div className="grid2">
           <label className="field"><span>업종</span>
-            <input value={form.industry} onChange={set('industry')} placeholder="제조 · IT · 유통…" />
+            <select value={form.industry} onChange={set('industry')}>
+              <option value="">선택 안 함</option>
+              {/* 목록에 없는 예전 값도 그대로 남긴다 — 지우면 그 거래처의 업종이 사라진다. */}
+              {form.industry && !INDUSTRIES.includes(form.industry) && (
+                <option value={form.industry}>{form.industry} (기존)</option>
+              )}
+              {INDUSTRY_GROUPS.map((g) => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.items.map((name) => <option key={name} value={name}>{name}</option>)}
+                </optgroup>
+              ))}
+            </select>
           </label>
           <label className="field"><span>등급</span>
             <select value={form.grade} onChange={set('grade')}>
               {GRADES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
             </select>
+            {/* 기준을 적어두지 않으면 사람마다 다르게 매겨 등급이 의미를 잃는다. */}
+            <small className="hint">
+              {getGrade(form.grade).desc}
+              <em> · {getGrade(form.grade).cadence}</em>
+            </small>
           </label>
         </div>
         <div className="grid2">

@@ -775,12 +775,12 @@ button.col-head {
 
 /* --------------------------- 넓은 화면 레이아웃 정돈 --------------------------- */
 /* 가로는 100% 로 쓰되, 한 줄이 지나치게 길어지지 않게 목록을 여러 열로 나눈다. */
-@media (min-width: 900px) {
-  .card-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (min-width: 1400px) {
-  .card-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
+/* 거래처 목록 — 폭에 맞춰 열 수가 늘어나되 한 행에 최대 5개까지.
+   auto-fill 은 상한이 없어 초광폭에서 카드가 잘게 쪼개지므로 단계로 묶는다. */
+@media (min-width: 640px)  { .card-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 960px)  { .card-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .card-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1600px) { .card-list { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 /* PC 사이드메뉴 다듬기 — 여백을 늘리고 선택 상태를 은은하게. */
 @media (min-width: 1024px) {

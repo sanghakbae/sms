@@ -39,8 +39,44 @@ jobs:
         with:
           path: dist
 
-  deploy:
+  # 보안 규칙은 파일만 고쳐선 적용되지 않는다. 사람이 기억해서 CLI 를 돌리는 대신
+  # 여기서 배포한다 — main 에 있는 규칙이 곧 서버에 걸린 규칙이 되도록.
+  #
+  # 앱보다 먼저 배포한다. 규칙이 늦으면 새 화면이 나간 뒤에도 데이터가 거부된다.
+  # 이 잡이 실패하면 앱 배포도 멈춘다(두 쪽이 어긋난 채 나가는 것보다 낫다).
+  rules:
+    name: Firestore 보안 규칙 배포
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 서비스 계정 자격증명 준비
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다." \
+                 "보안 규칙이 배포되지 않으면 화면과 권한이 어긋납니다." \
+                 "Settings → Secrets and variables → Actions → Secrets 에 등록하세요."
+            exit 1
+          fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/firebase-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+      - name: 규칙·인덱스 배포
+        run: |
+          npx -y firebase-tools@14 deploy \
+            --only firestore:rules,firestore:indexes \
+            --project "${{ vars.VITE_FIREBASE_PROJECT_ID }}" \
+            --non-interactive
+      - name: 자격증명 삭제
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-sa.json"
+
+  deploy:
+    needs: [build, rules]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
