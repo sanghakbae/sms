@@ -1,9 +1,33 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import DealCard from '../components/DealCard.jsx'
 import DealModal from '../components/DealModal.jsx'
 import { STAGES, getStage, isDealLost, isOpen } from '../lib/pipeline.js'
 import { compactWon, todayISO } from '../lib/format.js'
+
+// 접어둔 단계는 다시 들어와도 그대로여야 한다. 화면마다 취향이 달라서.
+const COLLAPSE_KEY = 'deals.collapsedStages'
+
+function readCollapsed() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
+/** 단계가 세로로 쌓이는 폭인가. 이때만 접기가 의미 있다. */
+function useStacked() {
+  const query = '(max-width: 719px)'
+  const [stacked, setStacked] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = (e) => setStacked(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return stacked
+}
 
 export default function Deals() {
   const { deals, user, canCreate, updateDeal, notify } = useApp()
@@ -13,6 +37,17 @@ export default function Deals() {
   // 드래그로 옮기는 중인 딜 id 와, 지금 올라가 있는 열.
   const [dragId, setDragId] = useState('')
   const [overStage, setOverStage] = useState('')
+  const stacked = useStacked()
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+
+  const toggleStage = (id) => setCollapsed((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    // 저장에 실패해도(사파리 시크릿 등) 접기 자체는 동작해야 한다.
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next])) } catch { /* 무시 */ }
+    return next
+  })
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -87,9 +122,10 @@ export default function Deals() {
           // 상태에만 기대면 dragstart 직후의 드롭에서 아직 반영이 안 돼 무시될 수 있다.
           const dragging = deals.find((d) => d.id === dragId)
           const canDrop = Boolean(dragging) && dragging.stage !== stage.id
+          const isCollapsed = stacked && collapsed.has(stage.id)
           return (
             <div
-              className={`board-col stage-${stage.id}${overStage === stage.id && canDrop ? ' drop-over' : ''}`}
+              className={`board-col stage-${stage.id}${overStage === stage.id && canDrop ? ' drop-over' : ''}${isCollapsed ? ' collapsed' : ''}`}
               key={stage.id}
               onDragOver={(e) => { e.preventDefault(); setOverStage(stage.id) }}
               onDragLeave={() => setOverStage((v) => (v === stage.id ? '' : v))}
@@ -102,24 +138,36 @@ export default function Deals() {
                 setDragId('')
               }}
             >
-              <div className="col-head" style={{ '--c': stage.color }}>
+              <button
+                type="button"
+                className="col-head"
+                style={{ '--c': stage.color }}
+                onClick={() => stacked && toggleStage(stage.id)}
+                aria-expanded={stacked ? !isCollapsed : undefined}
+                aria-controls={stacked ? `col-body-${stage.id}` : undefined}
+                // 가로로 늘어놓는 폭에서는 접을 일이 없으므로 초점도 주지 않는다.
+                tabIndex={stacked ? 0 : -1}
+              >
                 <span className="col-name">{stage.label}</span>
                 <span className="col-count">{items.length}</span>
+                {stacked && <span className="col-toggle" aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>}
                 <span className="col-sum">{compactWon(sum)}</span>
-              </div>
-              <div className="col-body">
-                {items.length === 0 && <div className="col-empty">비어있음</div>}
-                {items.map((d) => (
-                  <DealCard
-                    key={d.id}
-                    deal={d}
-                    dragging={dragId === d.id}
-                    onDragStart={() => setDragId(d.id)}
-                    onDragEnd={() => { setDragId(''); setOverStage('') }}
-                    onClick={() => setEditing(d)}
-                  />
-                ))}
-              </div>
+              </button>
+              {!isCollapsed && (
+                <div className="col-body" id={`col-body-${stage.id}`}>
+                  {items.length === 0 && <div className="col-empty">비어있음</div>}
+                  {items.map((d) => (
+                    <DealCard
+                      key={d.id}
+                      deal={d}
+                      dragging={dragId === d.id}
+                      onDragStart={() => setDragId(d.id)}
+                      onDragEnd={() => { setDragId(''); setOverStage('') }}
+                      onClick={() => setEditing(d)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}

@@ -25,7 +25,24 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { height: 100%; }
+/* 네이티브 앱처럼 — 문서 자체는 움직이지 않는다.
+   스크롤은 #root 안에서만 일어나므로 고무줄 튕김, 당겨서 새로고침,
+   좌우로 밀려 흰 여백이 드러나는 현상이 생기지 않는다. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* iOS 에서 두 번 탭했을 때 확대되는 것만 막는다(핀치 확대는 남겨둔다). */
+  touch-action: manipulation;
+}
+
+#root {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 
 body {
   margin: 0;
@@ -349,6 +366,7 @@ input, select, textarea { font-family: inherit; }
   overflow-x: auto;
   padding: 2px 2px 12px;
   scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
 }
 .board-col {
@@ -363,6 +381,15 @@ input, select, textarea { font-family: inherit; }
   flex-direction: column;
   overflow: hidden;
 }
+button.col-head {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
 .col-head {
   --c: var(--brand);
   display: grid;
@@ -467,6 +494,7 @@ input, select, textarea { font-family: inherit; }
   align-items: flex-end;
   justify-content: center;
   padding: 0;
+  overscroll-behavior: contain;
 }
 .modal {
   width: 100%;
@@ -481,7 +509,7 @@ input, select, textarea { font-family: inherit; }
 @keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
 .modal-head h2 { margin: 0; font-size: 17px; font-weight: 800; }
-.modal-body { padding: 16px 18px; overflow-y: auto; }
+.modal-body { padding: 16px 18px; overflow-y: auto; overscroll-behavior: contain; }
 .modal-foot { padding: 12px 18px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .foot-row { display: flex; align-items: center; gap: 8px; }
 .foot-row .spacer { flex: 1; }
@@ -1539,6 +1567,21 @@ button.primary.sm { color: #fff; }
   .board-col .col-body:has(.col-empty) { padding: 0; }
   .board-col .col-empty { display: none; }
   .deals .toolbar .hint { display: none; }
+
+  /* 단계 머리글을 눌러 접는다. 접히면 머리글만 남는다. */
+  .col-head {
+    grid-template-columns: 1fr auto auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .col-head:active { background: var(--bg); }
+  .board-col.collapsed .col-head { border-bottom: 0; }
+  .col-toggle {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+    padding-left: 2px;
+  }
 }
 
 /* 대시보드 목록 항목이 버튼이 됐다 — 눌러서 상세를 연다. */
