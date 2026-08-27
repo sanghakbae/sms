@@ -84,8 +84,13 @@ export default function Trades() {
         : (
           <div className="trade-list">
             {rows.map((t) => (
-              <button type="button" className="trade-row" key={t.id} onClick={() => setOpen(t)}>
-                <span className="tr-bar" style={{ background: settlementColor(t.settlement) }} />
+              <button
+                type="button"
+                className="trade-row"
+                key={t.id}
+                onClick={() => setOpen(t)}
+                style={{ '--c': settlementColor(t.settlement) }}
+              >
                 <span className="tr-main">
                   <b>{t.title}</b>
                   <small>

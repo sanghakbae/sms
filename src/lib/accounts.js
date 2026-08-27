@@ -11,6 +11,7 @@ export const ALLOWED_DOMAINS = []
 // 관리자 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치다.
 // firestore.rules 의 isAdmin() 안에 있는 목록과 반드시 같게 유지할 것.
 export const BOOTSTRAP_ADMINS = [
+  'qa@muhayu.com',
   'totoriverce@tukorea.ac.kr',
 ]
 
