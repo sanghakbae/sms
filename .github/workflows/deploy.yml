@@ -50,22 +50,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: 서비스 계정 자격증명 준비
+
+      # 규칙이 이번 푸시에서 바뀌었는지 본다.
+      # 안 바뀌었으면 시크릿이 없어도 배포를 막지 않는다 — 무관한 변경까지
+      # 통째로 멈추는 건 과하다. 바뀌었는데 못 올리는 경우만 실패시킨다.
+      - id: changed
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1 \
+             && git diff --quiet HEAD^ HEAD -- firestore.rules firestore.indexes.json; then
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: creds
+        name: 서비스 계정 자격증명 준비
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RULES_CHANGED: ${{ steps.changed.outputs.value }}
         run: |
-          if [ -z "$SA" ]; then
-            echo "::error::FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다." \
-                 "보안 규칙이 배포되지 않으면 화면과 권한이 어긋납니다." \
+          if [ -n "$SA" ]; then
+            printf '%s' "$SA" > "$RUNNER_TEMP/firebase-sa.json"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$RULES_CHANGED" = "true" ]; then
+            echo "::error::firestore.rules 가 바뀌었는데 FIREBASE_SERVICE_ACCOUNT 시크릿이 없습니다." \
+                 "규칙을 못 올리면 화면과 권한이 어긋납니다." \
                  "Settings → Secrets and variables → Actions → Secrets 에 등록하세요."
             exit 1
           fi
-          printf '%s' "$SA" > "$RUNNER_TEMP/firebase-sa.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+          echo "::warning::FIREBASE_SERVICE_ACCOUNT 시크릿이 없어 규칙 배포를 건너뜁니다." \
+               "이번 푸시에는 규칙 변경이 없어 그대로 진행합니다."
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+
       - name: 규칙·인덱스 배포
+        if: steps.creds.outputs.ready == 'true'
         run: |
           npx -y firebase-tools@14 deploy \
             --only firestore:rules,firestore:indexes \
