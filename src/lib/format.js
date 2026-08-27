@@ -71,6 +71,11 @@ export function compactWon(amount) {
   return `${sign}${abs.toLocaleString('ko-KR')}`
 }
 
+/** ₩4,500,000(450만원) — 입력 확인용. 정확한 금액과 읽기 쉬운 축약을 함께 보여준다. */
+export function wonWithCompact(amount) {
+  return `${formatWon(amount)}(${compactWon(amount)}원)`
+}
+
 function trim(x) {
   // 3.40 → 3.4, 3.00 → 3
   return Number(x.toFixed(1)).toString()

@@ -12,16 +12,22 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
+  writeBatch,
 } from 'firebase/firestore'
 
 import { auth, collectionName, db, isFirebaseConfigured } from '../firebase.js'
 import { isAdminEmail, isAllowedEmail, normalizeEmail, shortName } from './accounts.js'
+import { ROLE_MEMBER, UNASSIGNED, normalizeTeams } from './teams.js'
 
 export { isFirebaseConfigured }
 
@@ -76,15 +82,41 @@ function ownerFields(user) {
   return { owner: user.uid, ownerName: user.name, ownerEmail: user.email }
 }
 
+/**
+ * 문서가 어느 팀 것인지. 팀별 격리의 기준이라 생성할 때 반드시 박아야 한다.
+ *
+ * 보안 규칙은 필터가 아니다 — 팀원의 목록 쿼리는 where('teamId','==',내팀) 으로
+ * 나가고, 이 필드가 없는 문서는 그 결과에 들어오지 않는다(관리자에게만 보인다).
+ */
+function teamFields(user) {
+  return { teamId: user?.teamId || UNASSIGNED }
+}
+
 /* --------------------------------- 구독(읽기) --------------------------------- */
 
-function subscribeCollection(name, order, onData, onError) {
+/**
+ * scope = { isAdmin, teamId } — 팀원은 자기 팀 문서만 받는다.
+ *
+ * 규칙에만 기대면 안 된다. 보안 규칙은 '필터'가 아니라 '검사'라서,
+ * 전체 컬렉션을 그냥 구독하면 남의 팀 문서 하나 때문에 쿼리가 통째로 거부된다.
+ * 그래서 여기서 where 로 좁혀 보낸다. 규칙은 그 뒤를 받쳐주는 이중 잠금이다.
+ */
+function subscribeCollection(name, order, onData, onError, scope) {
   if (!isFirebaseConfigured) {
     onData([])
     return () => {}
   }
+  const scoped = scope && !scope.isAdmin
+  // 팀이 없는 일반 팀원은 볼 게 없다 — 빈 쿼리를 날리지 않고 바로 빈 목록을 준다.
+  if (scoped && !scope.teamId) {
+    onData([])
+    return () => {}
+  }
   const ref = collection(db, collectionName(name))
-  const q = order ? query(ref, orderBy(order.field, order.dir || 'desc')) : ref
+  const clauses = []
+  if (scoped) clauses.push(where('teamId', '==', scope.teamId))
+  if (order) clauses.push(orderBy(order.field, order.dir || 'desc'))
+  const q = clauses.length ? query(ref, ...clauses) : ref
   return onSnapshot(
     q,
     (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
@@ -92,16 +124,16 @@ function subscribeCollection(name, order, onData, onError) {
   )
 }
 
-export function subscribeCustomers(onData, onError) {
-  return subscribeCollection('customers', { field: 'name', dir: 'asc' }, onData, onError)
+export function subscribeCustomers(scope, onData, onError) {
+  return subscribeCollection('customers', { field: 'name', dir: 'asc' }, onData, onError, scope)
 }
 
-export function subscribeDeals(onData, onError) {
-  return subscribeCollection('deals', { field: 'updatedAt', dir: 'desc' }, onData, onError)
+export function subscribeDeals(scope, onData, onError) {
+  return subscribeCollection('deals', { field: 'updatedAt', dir: 'desc' }, onData, onError, scope)
 }
 
-export function subscribeActivities(onData, onError) {
-  return subscribeCollection('activities', { field: 'date', dir: 'desc' }, onData, onError)
+export function subscribeActivities(scope, onData, onError) {
+  return subscribeCollection('activities', { field: 'date', dir: 'desc' }, onData, onError, scope)
 }
 
 export function subscribeTargets(onData, onError) {
@@ -124,6 +156,7 @@ export async function addCustomer(user, data) {
   await addDoc(collection(db, collectionName('customers')), {
     ...data,
     ...ownerFields(user),
+    ...teamFields(user),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -148,6 +181,7 @@ export async function addDeal(user, data) {
     ...data,
     amount: Number(data.amount) || 0,
     ...ownerFields(user),
+    ...teamFields(user),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -170,7 +204,18 @@ export async function addActivity(user, data) {
   await addDoc(collection(db, collectionName('activities')), {
     ...data,
     ...ownerFields(user),
+    ...teamFields(user),
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** 활동 기록 수정. 작성자 본인·팀장·관리자만 (규칙에서 같이 막는다). */
+export async function updateActivity(id, data) {
+  assertConfigured()
+  await updateDoc(doc(db, collectionName('activities'), id), {
+    ...data,
+    updatedAt: serverTimestamp(),
   })
 }
 
@@ -265,3 +310,271 @@ export async function setYearlyTarget(year, amount) {
   )
 }
 
+
+/* --------------------------------- 팀원 명단 --------------------------------- */
+//
+// members/{uid} — 로그인하면 본인이 자기 문서를 올린다.
+// 관리자가 이메일을 손으로 받아 적는 대신, '로그인한 적 있는 사람'이 목록에 뜨고
+// 관리자는 거기서 팀에 넣는다. teamId 는 본인이 못 쓴다(규칙에서 막는다) —
+// 안 막으면 아무나 남의 팀에 들어가 그 팀 데이터를 볼 수 있다.
+
+/** 로그인 직후 본인 문서를 올린다(없으면 만들고, 있으면 신원 정보만 갱신). */
+export async function registerMember(user) {
+  if (!isFirebaseConfigured || !user?.uid) return
+  const ref = doc(db, collectionName('members'), user.uid)
+  // 신원 정보는 Auth 토큰에서 온 값만 쓴다 — 화면에서 바꿀 수 있는 값이 아니다.
+  const identity = {
+    email: user.email,
+    name: user.name,
+    photoURL: user.photoURL || '',
+    lastLoginAt: serverTimestamp(),
+  }
+  try {
+    const snap = await getDoc(ref)
+    if (snap.exists()) {
+      await updateDoc(ref, identity)
+    } else {
+      // 처음 로그인 — 팀은 비워둔다. 관리자가 넣어줘야 비로소 팀원이 된다.
+      await setDoc(ref, {
+        ...identity,
+        teamId: UNASSIGNED,
+        role: ROLE_MEMBER,
+        createdAt: serverTimestamp(),
+      })
+    }
+  } catch (err) {
+    // 명단 등록이 실패해도 앱은 떠야 한다 — 관리자가 목록에서 못 볼 뿐이다.
+    // 조용히 삼키면 원인을 못 찾으니 콘솔에는 남긴다.
+    console.warn('팀원 명단 등록 실패', err)
+  }
+}
+
+export function subscribeMembers(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  const ref = collection(db, collectionName('members'))
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.docs.map((d) => ({
+      uid: d.id,
+      ...d.data(),
+      teamId: d.data().teamId || UNASSIGNED,
+      role: d.data().role || ROLE_MEMBER,
+    }))),
+    (err) => onError && onError(err),
+  )
+}
+
+/** 팀 배정·이동·해제(관리자만). teamId 를 빈 문자열로 주면 팀에서 빼는 것이다. */
+export async function setMemberTeam(uid, teamId) {
+  assertConfigured()
+  await updateDoc(doc(db, collectionName('members'), uid), {
+    teamId: String(teamId || UNASSIGNED),
+  })
+}
+
+/**
+ * 팀장·팀원 역할 지정(관리자만).
+ * 본인이 자기 역할을 올릴 수 없게 규칙에서도 막는다 — 안 막으면 누구나 팀장이 된다.
+ */
+export async function setMemberRole(uid, role) {
+  assertConfigured()
+  await updateDoc(doc(db, collectionName('members'), uid), {
+    role: role === 'leader' ? 'leader' : ROLE_MEMBER,
+  })
+}
+
+/** 명단에서 완전히 지운다. 그 사람이 만든 데이터는 남는다. */
+export async function removeMember(uid) {
+  assertConfigured()
+  await deleteDoc(doc(db, collectionName('members'), uid))
+}
+
+/* ---------------------------------- 팀 목록 ---------------------------------- */
+
+/** settings/teams. 문서가 없으면 빈 배열. */
+export function subscribeTeams(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'teams')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? normalizeTeams(snap.data().items || []) : []),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setTeams(items) {
+  assertConfigured()
+  await setDoc(
+    doc(db, collectionName('settings'), 'teams'),
+    { items: normalizeTeams(items) },
+    { merge: true },
+  )
+}
+
+/** 팀별 연 목표. settings/teamTargets 에 { 'YYYY': { teamId: 금액 } } 로 둔다. */
+export function subscribeTeamTargets(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData({})
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'teamTargets')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? snap.data() : {}),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setTeamTargets(year, allocation) {
+  assertConfigured()
+  const clean = {}
+  for (const [teamId, amount] of Object.entries(allocation || {})) {
+    const key = String(teamId || '').trim()
+    const value = Number(amount) || 0
+    if (key && value > 0) clean[key] = value
+  }
+  // 그 해 전체를 덮어쓴다 — 0으로 지운 팀이 남지 않도록.
+  await setDoc(
+    doc(db, collectionName('settings'), 'teamTargets'),
+    { [String(year)]: clean },
+    { merge: true },
+  )
+}
+
+/* ------------------------------ 기존 데이터 팀 배정 ----------------------------- */
+
+/**
+ * teamId 가 없는 옛 문서를 팀에 넣는다(관리자만).
+ *
+ * 팀별 격리를 켜기 전에 만들어진 문서에는 teamId 가 없다. 그런 문서는
+ * 팀원의 where('teamId','==',...) 쿼리에 걸리지 않아 화면에서 사라진 것처럼 보인다.
+ * 관리자에게는 계속 보이므로, 관리자가 이 함수로 한 번 채워줘야 한다.
+ *
+ * 배치는 500건 제한이 있어 나눠 커밋한다.
+ * onProgress(done, total) 로 진행 상황을 알려준다 — 185건이면 눈에 보이는 시간이 걸린다.
+ */
+export async function assignMissingTeam(name, teamId, onProgress) {
+  assertConfigured()
+  const target = String(teamId || '').trim()
+  if (!target) throw new Error('배정할 팀을 골라주세요.')
+
+  const snap = await getDocs(collection(db, collectionName(name)))
+  // teamId 가 없거나 빈 문서만 건드린다 — 이미 배정된 건 그대로 둔다.
+  const todo = snap.docs.filter((d) => !d.data().teamId)
+  const total = todo.length
+  if (total === 0) return 0
+
+  const CHUNK = 400
+  let done = 0
+  for (let i = 0; i < todo.length; i += CHUNK) {
+    const batch = writeBatch(db)
+    for (const d of todo.slice(i, i + CHUNK)) batch.update(d.ref, { teamId: target })
+    await batch.commit()
+    done += Math.min(CHUNK, todo.length - i)
+    if (onProgress) onProgress(done, total)
+  }
+  return total
+}
+
+/** teamId 가 없는 문서가 몇 건인지 센다. 배정 전에 규모를 알려주려는 것. */
+export async function countMissingTeam(name) {
+  assertConfigured()
+  const snap = await getDocs(collection(db, collectionName(name)))
+  return snap.docs.filter((d) => !d.data().teamId).length
+}
+
+/* ---------------------------------- 활동 댓글 --------------------------------- */
+//
+// activities/{id}/comments/{cid} — 하위 컬렉션으로 둔다.
+// 활동 문서에 배열로 넣으면 댓글 하나 달 때마다 활동 전체를 덮어써야 하고,
+// '작성자는 자기 활동을 수정할 수 있다' 는 규칙 때문에 작성자가 팀장 댓글을
+// 지워버릴 수 있다. 문서를 나눠야 권한을 따로 걸 수 있다.
+
+/** 한 활동의 댓글. 모달을 열 때만 구독한다. */
+export function subscribeComments(activityId, onData, onError) {
+  if (!isFirebaseConfigured || !activityId) {
+    onData([])
+    return () => {}
+  }
+  const ref = collection(db, collectionName('activities'), activityId, 'comments')
+  return onSnapshot(
+    query(ref, orderBy('createdAt', 'asc')),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => onError && onError(err),
+  )
+}
+
+/** 댓글 달기. 팀장·관리자만 (규칙에서 같이 막는다). */
+export async function addComment(user, activityId, text) {
+  assertConfigured()
+  const body = String(text || '').trim()
+  if (!body) throw new Error('내용을 입력해주세요.')
+  await addDoc(collection(db, collectionName('activities'), activityId, 'comments'), {
+    text: body,
+    ...ownerFields(user),
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function updateComment(activityId, commentId, text) {
+  assertConfigured()
+  const body = String(text || '').trim()
+  if (!body) throw new Error('내용을 입력해주세요.')
+  await updateDoc(doc(db, collectionName('activities'), activityId, 'comments', commentId), {
+    text: body,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function removeComment(activityId, commentId) {
+  assertConfigured()
+  await deleteDoc(doc(db, collectionName('activities'), activityId, 'comments', commentId))
+}
+
+/* --------------------------------- 감사 로그 --------------------------------- */
+//
+// auditLogs — 덧붙이기만 가능하다. 규칙에서 update·delete 를 모두 막는다.
+// 읽기는 관리자만. 로그가 실패해도 원래 작업은 진행돼야 하므로 절대 던지지 않는다.
+
+/** 로그 한 줄. 실패해도 조용히 넘어간다 — 로그 때문에 본 작업이 막히면 안 된다. */
+export async function writeAudit(user, action, payload = {}) {
+  if (!isFirebaseConfigured || !user?.uid || !action) return
+  try {
+    await addDoc(collection(db, collectionName('auditLogs')), {
+      action,
+      actor: user.uid,
+      actorName: user.name || '',
+      actorEmail: user.email || '',
+      teamId: user.teamId || UNASSIGNED,
+      targetId: String(payload.targetId || ''),
+      targetLabel: String(payload.targetLabel || ''),
+      from: payload.from == null ? '' : String(payload.from),
+      to: payload.to == null ? '' : String(payload.to),
+      note: String(payload.note || ''),
+      at: serverTimestamp(),
+    })
+  } catch (err) {
+    // 남기지 못했다는 사실 자체는 콘솔에 남긴다.
+    console.warn('감사 로그 기록 실패', action, err)
+  }
+}
+
+/** 최근 로그. 관리자만 읽을 수 있다(규칙). */
+export function subscribeAuditLogs(max, onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  const ref = collection(db, collectionName('auditLogs'))
+  return onSnapshot(
+    query(ref, orderBy('at', 'desc'), limit(Number(max) || 200)),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => onError && onError(err),
+  )
+}

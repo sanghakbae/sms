@@ -5,13 +5,85 @@
 
 // preQualified 인 단계는 '아직 영업기회로 인정하기 전' 이다.
 // 예산·권한·니즈·시기가 확인되지 않았으므로 매출 전망에 넣지 않는다.
+// summary  한 줄 정의 — 이 단계가 무엇인가
+// entry    여기로 올릴 조건 — 무엇이 확인돼야 하나
+// exit     다음으로 넘어가는 신호
+// watch    이 단계에서 흔히 하는 실수
 export const STAGES = [
-  { id: 'lead', label: '리드', short: '발굴', color: '#94a3b8', probability: 10, closed: false, preQualified: true },
-  { id: 'qualify', label: '검증', short: '자격', color: '#64748b', probability: 20, closed: false },
-  { id: 'contact', label: '상담', short: '접촉', color: '#0ea5e9', probability: 30, closed: false },
-  { id: 'proposal', label: '제안', short: '견적', color: '#6366f1', probability: 50, closed: false },
-  { id: 'negotiation', label: '협상', short: '조율', color: '#f59e0b', probability: 80, closed: false },
-  { id: 'won', label: '수주', short: '성공', color: '#10b981', probability: 100, closed: true, win: true },
+  {
+    id: 'lead',
+    label: '리드',
+    short: '발굴',
+    color: '#94a3b8',
+    probability: 10,
+    closed: false,
+    preQualified: true,
+    summary: '아직 영업기회가 아닌 단서. 이름과 연락처는 있지만 살 사람인지 모른다.',
+    entry: '전시회 명함, 홈페이지 문의, 소개받은 연락처처럼 접점이 하나라도 생겼을 때.',
+    exit: '예산·결정권·니즈·시기(BANT)가 하나라도 확인되면 검증으로 올린다.',
+    watch: '리드는 예상매출에 넣지 않는다. 거래처로 등록하지도 않는다 — 검증도 안 된 회사가 거래처 목록에 쌓이면 등급 관리가 무의미해진다.',
+  },
+  {
+    id: 'qualify',
+    label: '검증',
+    short: '자격',
+    color: '#64748b',
+    probability: 20,
+    closed: false,
+    summary: '살 수 있는 고객인지 확인하는 단계. 여기서부터 영업기회로 센다.',
+    entry: '예산 규모, 결정 라인, 실제 필요, 도입 시기 — 넷 중 최소 둘을 확인했을 때.',
+    exit: '담당자와 실제 대화가 시작되면 상담으로.',
+    watch: '이 단계에서 거래처를 등록하고 딜에 연결한다. 검증을 통과했다는 것이 곧 거래처로 관리할 값어치가 생겼다는 뜻이다.',
+  },
+  {
+    id: 'contact',
+    label: '상담',
+    short: '접촉',
+    color: '#0ea5e9',
+    probability: 30,
+    closed: false,
+    summary: '요구사항을 파고드는 단계. 무엇을 왜 필요로 하는지 듣는다.',
+    entry: '미팅·데모·통화로 실제 논의가 시작됐을 때.',
+    exit: '요구사항이 정리되고 견적을 달라는 말이 나오면 제안으로.',
+    watch: '결정권자를 아직 못 만났다면 여기 머물러야 한다. 실무자 호감만 보고 올리면 제안에서 깨진다.',
+  },
+  {
+    id: 'proposal',
+    label: '제안',
+    short: '견적',
+    color: '#6366f1',
+    probability: 50,
+    closed: false,
+    summary: '제안서와 견적이 고객 손에 넘어간 상태.',
+    entry: '가격이 포함된 제안서·견적서를 정식으로 전달했을 때.',
+    exit: '고객이 조건을 조정하자고 하면 협상으로.',
+    watch: '보냈다고 올리는 게 아니라 상대가 받아서 검토에 들어갔는지 확인하고 올린다. 예상 마감일을 여기서 반드시 채운다.',
+  },
+  {
+    id: 'negotiation',
+    label: '협상',
+    short: '조율',
+    color: '#f59e0b',
+    probability: 80,
+    closed: false,
+    summary: '살 마음은 정해졌고 조건을 맞추는 단계.',
+    entry: '단가·기간·계약조건을 두고 실제로 주고받기 시작했을 때.',
+    exit: '계약서에 서명하거나 발주가 나오면 수주.',
+    watch: '여기서 깨지면 금액이 큰 만큼 타격도 크다. 실패로 마감할 때 회고를 반드시 남긴다.',
+  },
+  {
+    id: 'won',
+    label: '수주',
+    short: '성공',
+    color: '#10b981',
+    probability: 100,
+    closed: true,
+    win: true,
+    summary: '계약이 확정된 상태. 매출로 잡힌다.',
+    entry: '계약 체결 또는 발주서 접수.',
+    exit: '—',
+    watch: '종료일이 실적 집계 기준이다. 계약일과 다르면 종료일을 고쳐준다.',
+  },
 ]
 
 // 실패는 '단계'가 아니라 '상태'다. 제안에서 깨질 수도, 협상에서 깨질 수도 있으니

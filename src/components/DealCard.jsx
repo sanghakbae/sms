@@ -1,6 +1,7 @@
 import { compactWon, formatDate, relativeDay } from '../lib/format.js'
 import { dealProbability, isDealLost } from '../lib/pipeline.js'
 import { isOverdue } from '../lib/stats.js'
+import { stripMarkdown } from '../lib/markdown.js'
 
 /** 파이프라인 보드/목록에 쓰는 딜 카드. */
 export default function DealCard({ deal, onClick, dragging, onDragStart, onDragEnd }) {
@@ -28,7 +29,9 @@ export default function DealCard({ deal, onClick, dragging, onDragStart, onDragE
       </div>
       {deal.customerName && <div className="deal-customer">🏢 {deal.customerName}</div>}
       {deal.serviceName && <div className="deal-service">{deal.serviceName}</div>}
-      {lost && deal.lostReason && <div className="deal-retro">📉 {deal.lostReason}</div>}
+      {lost && deal.lostReason && (
+        <div className="deal-retro">📉 {stripMarkdown(deal.lostReason)}</div>
+      )}
       <div className="deal-meta">
         <span className="deal-owner">👤 {deal.ownerName || '—'}</span>
         {lost

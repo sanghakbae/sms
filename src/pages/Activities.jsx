@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import Modal from '../components/Modal.jsx'
+import ActivityDetail, { ActivityModal } from '../components/ActivityDetail.jsx'
 import { ACTIVITY_TYPES, getActivityType } from '../lib/pipeline.js'
-import { formatDate, relativeDay, todayISO } from '../lib/format.js'
-
-const EMPTY = { type: 'visit', customerId: '', date: todayISO(), note: '' }
+import { formatDate, relativeDay } from '../lib/format.js'
 
 export default function Activities() {
-  const { activities, customers, user, addActivity, removeActivity, notify } = useApp()
+  const { activities, customers, canCreate, addActivity, notify } = useApp()
   const [adding, setAdding] = useState(false)
+  const [opened, setOpened] = useState(null) // 상세를 연 활동
   const [typeFilter, setTypeFilter] = useState('')
 
   const list = useMemo(
@@ -27,6 +26,13 @@ export default function Activities() {
     return [...m.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
   }, [list])
 
+  // 목록이 갱신되면 열려 있는 상세도 최신 문서로 바꿔준다.
+  // 안 그러면 수정한 내용이 모달에 반영되지 않는다.
+  const current = opened ? activities.find((a) => a.id === opened.id) || null : null
+  useEffect(() => {
+    if (opened && !current) setOpened(null) // 남이 지웠다
+  }, [opened, current])
+
   return (
     <main className="page">
       <div className="toolbar">
@@ -41,7 +47,13 @@ export default function Activities() {
             >{t.icon} {t.label}</button>
           ))}
         </div>
-        <button type="button" className="primary" onClick={() => setAdding(true)}>+ 활동</button>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => setAdding(true)}
+          disabled={!canCreate}
+          title={canCreate ? '' : '팀에 배정돼야 만들 수 있습니다.'}
+        >+ 활동</button>
       </div>
 
       <div className="timeline">
@@ -51,31 +63,24 @@ export default function Activities() {
             <div className="tl-date">{formatDate(date)} <small>{relativeDay(date)}</small></div>
             {items.map((a) => {
               const t = getActivityType(a.type)
-              const canDelete = user.isAdmin || a.owner === user.uid
               return (
-                <div className="tl-item" key={a.id}>
+                <button
+                  type="button"
+                  className="tl-item"
+                  key={a.id}
+                  onClick={() => setOpened(a)}
+                >
                   <span className="tl-icon">{t.icon}</span>
-                  <div className="tl-body">
-                    <div className="tl-head">
+                  <span className="tl-body">
+                    <span className="tl-head">
                       <b>{t.label}</b>
                       {a.customerName && <span className="tl-cust">🏢 {a.customerName}</span>}
                       <span className="tl-owner">👤 {a.ownerName || ''}</span>
-                    </div>
-                    {a.note && <p className="tl-note">{a.note}</p>}
-                  </div>
-                  {canDelete && (
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label="삭제"
-                      onClick={async () => {
-                        if (!window.confirm('이 활동 기록을 삭제할까요? 되돌릴 수 없습니다.')) return
-                        await removeActivity(a.id)
-                        notify('활동을 삭제했습니다.')
-                      }}
-                    >✕</button>
-                  )}
-                </div>
+                    </span>
+                    {a.note && <span className="tl-note-line">{firstLine(a.note)}</span>}
+                  </span>
+                  <span className="tl-more" aria-hidden="true">›</span>
+                </button>
               )
             })}
           </div>
@@ -89,71 +94,16 @@ export default function Activities() {
           onSave={async (data) => { await addActivity(data); notify('활동을 기록했습니다.'); setAdding(false) }}
         />
       )}
+
+      {current && (
+        <ActivityDetail activity={current} onClose={() => setOpened(null)} />
+      )}
     </main>
   )
 }
 
-function ActivityModal({ customers, onClose, onSave }) {
-  const [form, setForm] = useState(EMPTY)
-  const [busy, setBusy] = useState(false)
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true)
-    try {
-      const c = customers.find((x) => x.id === form.customerId)
-      await onSave({
-        type: form.type,
-        customerId: form.customerId || '',
-        customerName: c?.name || '',
-        date: form.date || todayISO(),
-        note: form.note.trim(),
-      })
-    } finally { setBusy(false) }
-  }
-
-  return (
-    <Modal
-      title="활동 기록"
-      onClose={onClose}
-      footer={
-        <div className="foot-row">
-          <div className="spacer" />
-          <button type="button" onClick={onClose}>취소</button>
-          <button type="submit" form="act-form" className="primary" disabled={busy}>저장</button>
-        </div>
-      }
-    >
-      <form id="act-form" onSubmit={submit} className="form">
-        <div className="field">
-          <span>종류</span>
-          <div className="stage-picker">
-            {ACTIVITY_TYPES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`stage-btn${form.type === t.id ? ' on' : ''}`}
-                onClick={() => setForm((f) => ({ ...f, type: t.id }))}
-              >{t.icon} {t.label}</button>
-            ))}
-          </div>
-        </div>
-        <div className="grid2">
-          <label className="field"><span>거래처</span>
-            <select value={form.customerId} onChange={set('customerId')}>
-              <option value="">선택 안 함</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
-          <label className="field"><span>날짜</span>
-            <input type="date" value={form.date} onChange={set('date')} />
-          </label>
-        </div>
-        <label className="field"><span>내용</span>
-          <textarea value={form.note} onChange={set('note')} rows={3} placeholder="논의 내용, 다음 액션…" autoFocus />
-        </label>
-      </form>
-    </Modal>
-  )
+/** 목록에 보여줄 한 줄 요약. 서식 기호는 떼고 첫 줄만. */
+function firstLine(note) {
+  const line = String(note || '').split('\n').find((l) => l.trim()) || ''
+  return line.replace(/^\s*(?:#{1,3}\s+|>\s?|[-*]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/, '').trim()
 }

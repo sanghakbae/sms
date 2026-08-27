@@ -1,9 +1,32 @@
 rules_version = '2';
 
-// 영업 관리시스템 — 로그인(Google, 이메일 인증됨)한 계정이면 접근할 수 있다.
-// 거래처·영업기회·활동은 팀 전체가 함께 보되(파이프라인·실적을 공유하므로),
-// 수정·삭제는 담당자 본인 또는 팀장(admin)만 가능하다.
-// 월 매출목표 설정은 팀장만 할 수 있다.
+// 영업 관리시스템 보안 규칙.
+//
+// 접근 판정은 '이메일'로만 한다 — 클라이언트가 못 바꾸는 값(Auth 토큰)만 신뢰한다.
+// src/lib/accounts.js 와 같은 기준을 중복 구현하고 있으니 항상 함께 고칠 것.
+//
+// 권한 3단 — 관리자 > 팀장 > 팀원.
+//   관리자  settings/admins + bootstrapAdmins(). 전사 전체를 읽고 쓴다.
+//   팀장    members/{uid}.role == 'leader'. 자기 팀 문서는 남의 것도 고친다.
+//   팀원    그 밖. 자기 팀 문서를 읽고, 자기가 만든 것만 고친다.
+//
+// 팀별 격리:
+//   거래처·영업기회·활동에는 teamId 가 붙는다. 팀 밖 문서는 관리자만 본다.
+//   목표·팀 편성·역할 지정은 관리자만 한다(settings/*).
+//
+// ⚠️ 규칙은 필터가 아니다.
+//   여기서 teamId 를 검사한다고 목록이 걸러지지는 않는다. 클라이언트가
+//   where('teamId','==',내팀) 으로 좁혀 쿼리해야 하고, 안 그러면 남의 팀 문서
+//   하나 때문에 쿼리 전체가 거부된다. src/lib/store.js 의 subscribeCollection 참고.
+//
+//   그래서 아래 read 규칙은 resource.data.teamId 를 '직접' 비교한다.
+//   data.get('teamId','') 처럼 쓰면 Firestore 가 쿼리 조건과 짝지어주지 못해
+//   목록 조회가 통째로 막힌다.
+//
+// ⚠️ VITE_COLLECTION_PREFIX 는 여기 반영돼 있지 않다.
+//   앱은 접두사를 붙여 읽고 쓰지만 아래 경로는 접두사 없는 이름으로 고정돼 있다.
+//   접두사를 설정하면 모든 요청이 맨 아래 'if false' 로 떨어져 앱이 죽는다.
+//   접두사를 쓸 계획이면 이 파일의 경로부터 함께 바꿀 것.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -11,10 +34,9 @@ service cloud.firestore {
       return request.auth != null ? request.auth.token.email : '';
     }
 
-    // src/lib/accounts.js 의 ALLOWED_DOMAINS·ADMIN_EMAILS 와 반드시 같게 유지할 것.
-    // 도메인 제한 없음 — 이메일이 인증된 Google 계정이면 팀원으로 인정한다.
+    // 도메인 제한 없음 — 이메일이 인증된 구글 계정이면 팀원으로 인정한다.
     // 특정 도메인만 허용하려면 accounts.js 의 ALLOWED_DOMAINS 와 함께
-    // 아래 조건에 email().matches('.*@example[.]com') 형태를 다시 추가한다.
+    // email().matches('.*@example[.]com') 형태를 아래에 다시 추가한다.
     function isMember() {
       return request.auth != null
         && request.auth.token.email_verified == true
@@ -22,9 +44,9 @@ service cloud.firestore {
     }
 
     // src/lib/accounts.js 의 BOOTSTRAP_ADMINS 와 반드시 같게 유지할 것.
-    // 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치라 화면에서 지울 수 없다.
+    // 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치라 화면에서 못 지운다.
     function bootstrapAdmins() {
-      return ['qa@muhayu.com', 'totoriverce@tukorea.ac.kr'];
+      return ['totoriverce@tukorea.ac.kr'];
     }
 
     // 화면에서 추가한 관리자 명단(settings/admins). 문서가 없으면 빈 목록.
@@ -40,49 +62,202 @@ service cloud.firestore {
         && (email() in bootstrapAdmins() || email() in rosterAdmins());
     }
 
-    // 담당자(owner) 변경은 관리자만 할 수 있다.
-    // 일반 팀원은 자기 딜을 수정할 수는 있어도 남에게 넘길 수는 없다.
-    function ownerUnchangedOrAdmin() {
-      return request.resource.data.owner == resource.data.owner || isAdmin();
+    /* -------------------------------- 팀 소속 -------------------------------- */
+
+    // 내 팀. members/{uid} 에서 읽는다. 문서가 없거나 배정 전이면 빈 문자열.
+    // 같은 경로를 여러 번 읽어도 한 번으로 계산된다(규칙 평가 안에서 캐시된다).
+    function myTeamId() {
+      return exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/members/$(request.auth.uid)).data.get('teamId', '')
+        : '';
     }
 
-    // 담당자 본인 또는 팀장만 손댈 수 있다.
-    function ownsOrAdmin() {
-      return resource.data.owner == request.auth.uid || isAdmin();
+    // 팀에 속해 있는가. 미배정은 데이터를 만들 수도, 볼 수도 없다 —
+    // '팀에 넣는 것' 이 곧 승인이다.
+    function hasTeam() {
+      return myTeamId() != '';
     }
+
+    // 내 역할. 값이 없으면 팀원으로 본다(권한을 더 주지 않는 쪽으로 기운다).
+    function myRole() {
+      return exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/members/$(request.auth.uid)).data.get('role', 'member')
+        : 'member';
+    }
+
+    // 팀장 — 자기 팀 안에서는 남의 문서도 고칠 수 있다.
+    // 관리자와는 다르다: 관리자는 전사, 팀장은 자기 팀까지다.
+    function isLeader() {
+      return hasTeam() && myRole() == 'leader';
+    }
+
+    // 내 팀 문서인가. 관리자 판정보다 뒤에 둬서, teamId 가 없는 옛 문서에서
+    // 평가 오류가 나도 관리자는 먼저 통과하게 한다.
+    function sameTeam() {
+      return hasTeam() && resource.data.teamId == myTeamId();
+    }
+
+    // 만들 때는 반드시 내 팀으로 박아야 한다. 남의 팀으로 밀어넣는 것을 막는다.
+    function createsInMyTeam() {
+      return hasTeam() && request.resource.data.teamId == myTeamId();
+    }
+
+    // 팀 이동은 관리자만. 팀원이 자기 딜을 다른 팀으로 옮길 수는 없다.
+    function teamUnchangedOrAdmin() {
+      return isAdmin() || request.resource.data.teamId == resource.data.teamId;
+    }
+
+    /* -------------------------------- 담당자 -------------------------------- */
+
+    // 담당자 재배정은 관리자만.
+    function ownerUnchangedOrAdmin() {
+      return isAdmin() || request.resource.data.owner == resource.data.owner;
+    }
+
+    // 담당자 본인 또는 관리자.
+    function ownsOrAdmin() {
+      return isAdmin() || resource.data.owner == request.auth.uid;
+    }
+
+    // 팀 데이터를 고칠 수 있는가.
+    //   관리자 → 전사 전부
+    //   팀장   → 자기 팀 전부
+    //   팀원   → 자기 팀 안에서 자기가 만든 것만
+    function canWriteTeamDoc() {
+      return isAdmin()
+        || (sameTeam() && (myRole() == 'leader' || resource.data.owner == request.auth.uid));
+    }
+
+    /* ------------------------------- 팀원 명단 ------------------------------- */
+    //
+    // 로그인하면 본인이 자기 문서를 올린다. 그래서 관리자는 '로그인한 적 있는 사람'을
+    // 목록에서 보고 팀에 넣는다. teamId 는 본인이 못 건드린다 —
+    // 안 막으면 아무나 남의 팀에 들어가 그 팀 데이터를 다 볼 수 있다.
+    match /members/{uid} {
+      // 담당자 이름을 화면에 띄우려면 명단을 읽을 수 있어야 한다.
+      allow read: if isMember();
+
+      // 처음 올릴 때는 팀 없이, 팀원 역할로만 만들 수 있다.
+      allow create: if isMember() && (
+        isAdmin()
+        || (request.auth.uid == uid
+            && request.resource.data.email == email()
+            && request.resource.data.teamId == ''
+            && request.resource.data.get('role', 'member') == 'member')
+      );
+
+      // 본인은 신원 정보(이름·사진·최근 로그인)만 갱신한다.
+      // 팀과 역할은 그대로여야 한다 — 안 막으면 누구나 스스로 팀장이 되고
+      // 아무 팀에나 들어가 그 팀 데이터를 다 볼 수 있다.
+      allow update: if isMember() && (
+        isAdmin()
+        || (request.auth.uid == uid
+            && request.resource.data.email == email()
+            && request.resource.data.teamId == resource.data.teamId
+            && request.resource.data.get('role', 'member') == resource.data.get('role', 'member'))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    /* ------------------------------- 팀 데이터 ------------------------------- */
 
     match /customers/{id} {
-      allow read: if isMember();
+      allow read: if isMember() && (isAdmin() || sameTeam());
       allow create: if isMember()
+        && createsInMyTeam()
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0;
-      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
-      allow delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && canWriteTeamDoc()
+        && ownerUnchangedOrAdmin() && teamUnchangedOrAdmin();
+      allow delete: if isMember() && canWriteTeamDoc();
     }
 
     match /deals/{id} {
-      allow read: if isMember();
+      allow read: if isMember() && (isAdmin() || sameTeam());
       allow create: if isMember()
+        && createsInMyTeam()
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.amount is number
         && request.resource.data.amount >= 0;
-      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
-      allow delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && canWriteTeamDoc()
+        && ownerUnchangedOrAdmin() && teamUnchangedOrAdmin();
+      allow delete: if isMember() && canWriteTeamDoc();
     }
 
     match /activities/{id} {
-      allow read: if isMember();
+      allow read: if isMember() && (isAdmin() || sameTeam());
       allow create: if isMember()
+        && createsInMyTeam()
         && request.resource.data.owner == request.auth.uid;
-      allow update: if isMember() && ownsOrAdmin() && ownerUnchangedOrAdmin();
-      allow delete: if isMember() && ownsOrAdmin();
+      allow update: if isMember() && canWriteTeamDoc()
+        && ownerUnchangedOrAdmin() && teamUnchangedOrAdmin();
+      allow delete: if isMember() && canWriteTeamDoc();
+
+      // 활동에 달리는 댓글(피드백). 다는 것은 팀장 이상만,
+      // 읽는 것은 같은 팀이면 누구나 — 팀원이 자기 활동에 달린 코멘트를 봐야 뜻이 있다.
+      //
+      // 활동 문서에 배열로 넣지 않고 하위 컬렉션으로 나눈 이유는
+      // 작성자가 자기 활동을 수정할 때 팀장 댓글까지 덮어쓰지 못하게 하려는 것이다.
+      match /comments/{cid} {
+        function parentTeam() {
+          return get(/databases/$(database)/documents/activities/$(id)).data.teamId;
+        }
+        function parentInMyTeam() {
+          return hasTeam() && parentTeam() == myTeamId();
+        }
+
+        allow read: if isMember() && (isAdmin() || parentInMyTeam());
+
+        allow create: if isMember()
+          && (isAdmin() || (isLeader() && parentInMyTeam()))
+          && request.resource.data.owner == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000;
+
+        // 자기 댓글만 고치고 지운다. 관리자는 전부.
+        allow update: if isMember()
+          && (isAdmin() || resource.data.owner == request.auth.uid)
+          && request.resource.data.owner == resource.data.owner
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0;
+
+        allow delete: if isMember() && (isAdmin() || resource.data.owner == request.auth.uid);
+      }
     }
 
-    // settings/targets — 월별 매출목표 { 'YYYY-MM': 금액 }. 설정은 팀장만.
+    /* --------------------------------- 설정 --------------------------------- */
+    //
+    // settings/targets      전사 연 매출목표   { 'YYYY': 금액 }
+    // settings/teamTargets  팀별 연 목표       { 'YYYY': { teamId: 금액 } }
+    // settings/ownerTargets 영업자별 연 목표   { 'YYYY': { 이메일: 금액 } }
+    // settings/teams        팀 목록           { items: [{ id, name }] }
+    // settings/admins       관리자 명단        { emails: [] }
+    // settings/services     판매 서비스 목록    { items: [{ id, name }] }
     match /settings/{docId} {
       allow read: if isMember();
       allow write: if isAdmin();
+    }
+
+    /* -------------------------------- 감사 로그 ------------------------------- */
+    //
+    // 덧붙이기만 된다. 고치거나 지울 수 없다 — 그래야 기록으로서 뜻이 있다.
+    // 작성자는 본인으로 강제한다(남의 이름으로 남기지 못하게).
+    // 읽기는 관리자만 — 누가 무엇을 했는지는 권한이 있는 사람만 본다.
+    //
+    // ⚠️ 브라우저에서 쓰는 로그다. '남기지 않고 요청만 보내는 것' 까지는 막지 못한다
+    //    (그 요청 자체는 위 규칙들이 막는다). 위변조 불가 로그가 필요하면
+    //    Cloud Functions 에서 써야 한다.
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isMember()
+        && request.resource.data.actor == request.auth.uid
+        && request.resource.data.actorEmail == email()
+        && request.resource.data.action is string
+        && request.resource.data.action.size() > 0;
+      allow update, delete: if false;
     }
 
     match /{document=**} {

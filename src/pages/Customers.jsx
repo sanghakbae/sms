@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Modal from '../components/Modal.jsx'
-import { GRADES, getGrade } from '../lib/pipeline.js'
-import { initial } from '../lib/accounts.js'
+import MarkdownEditor from '../components/MarkdownEditor.jsx'
+import { GRADES, getGrade, getStage } from '../lib/pipeline.js'
+import { customerHistory, settlementColor, settlementLabel } from '../lib/settlement.js'
+import { compactWon, formatDate } from '../lib/format.js'
 
 const EMPTY = { name: '', industry: '', grade: 'B', contactName: '', phone: '', email: '', memo: '' }
 
 export default function Customers() {
-  const { customers, deals, activities, user, addCustomer, updateCustomer, removeCustomer, notify } = useApp()
+  const { customers, deals, activities, user, canCreate, addCustomer, updateCustomer, removeCustomer, notify } = useApp()
   const [q, setQ] = useState('')
   const [gradeFilter, setGradeFilter] = useState('')
   const [editing, setEditing] = useState(null) // null | 'new' | customer
@@ -37,7 +39,13 @@ export default function Customers() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button type="button" className="primary" onClick={() => setEditing('new')}>+ 거래처</button>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => setEditing('new')}
+          disabled={!canCreate}
+          title={canCreate ? '' : '팀에 배정돼야 만들 수 있습니다.'}
+        >+ 거래처</button>
       </div>
 
       <div className="chips">
@@ -59,7 +67,13 @@ export default function Customers() {
           const grade = getGrade(c.grade)
           return (
             <button type="button" className="row-card" key={c.id} onClick={() => setEditing(c)}>
-              <span className="grade-dot" style={{ background: grade.color }}>{c.grade}</span>
+              {/* 글자 하나만 두면 이니셜로 읽힌다 — 무엇의 등급인지 붙여준다. */}
+              <span
+                className="grade-dot"
+                style={{ background: grade.color }}
+                title={`${grade.label} 거래처`}
+                aria-label={`등급 ${grade.label}`}
+              >{c.grade}</span>
               <span className="row-main">
                 <span className="row-title">{c.name}</span>
                 <span className="row-sub">
@@ -68,7 +82,8 @@ export default function Customers() {
                   {dealCount.get(c.id) ? ` · 딜 ${dealCount.get(c.id)}건` : ''}
                 </span>
               </span>
-              <span className="row-owner" title={c.ownerName || ''}>{initial(c.ownerName)}</span>
+              {/* 담당자는 이니셜 대신 이름으로 — 첫 글자만으로는 누군지 알 수 없다. */}
+              <span className="row-owner">{c.ownerName || '담당 없음'}</span>
             </button>
           )
         })}
@@ -77,6 +92,7 @@ export default function Customers() {
       {editing && (
         <CustomerModal
           customer={editing === 'new' ? null : editing}
+          deals={deals}
           canDelete={editing !== 'new' && (user.isAdmin || editing.owner === user.uid)}
           onClose={() => setEditing(null)}
           onSave={async (data) => {
@@ -102,7 +118,7 @@ export default function Customers() {
   )
 }
 
-function CustomerModal({ customer, canDelete, onClose, onSave, onDelete }) {
+function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(customer ? { ...EMPTY, ...customer } : EMPTY)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -164,10 +180,119 @@ function CustomerModal({ customer, canDelete, onClose, onSave, onDelete }) {
         <label className="field"><span>이메일</span>
           <input value={form.email} onChange={set('email')} placeholder="buyer@company.com" inputMode="email" />
         </label>
-        <label className="field"><span>메모</span>
-          <textarea value={form.memo} onChange={set('memo')} rows={3} placeholder="특이사항, 니즈, 히스토리…" />
-        </label>
+        <div className="field"><span>메모</span>
+          <MarkdownEditor
+            value={form.memo}
+            onChange={(v) => setForm((f) => ({ ...f, memo: v }))}
+            rows={4}
+            placeholder="특이사항, 니즈, 히스토리…"
+          />
+        </div>
       </form>
+
+      {customer && <CustomerHistory customer={customer} deals={deals} />}
     </Modal>
+  )
+}
+
+/* -------------------------------- 거래 이력 -------------------------------- */
+
+/**
+ * 이 거래처와 무엇을 얼마에 했나.
+ * 수주는 '계약이 끝났다' 는 뜻이지 '돈을 받았다' 는 뜻이 아니라, 입금까지 함께 보여준다.
+ */
+function CustomerHistory({ customer, deals }) {
+  const h = useMemo(() => customerHistory(customer.id, deals), [customer.id, deals])
+
+  if (h.dealCount === 0) {
+    return (
+      <section className="cust-hist">
+        <h4>거래 이력</h4>
+        <p className="empty sm">아직 이 거래처로 만든 영업기회가 없습니다.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="cust-hist">
+      <h4>거래 이력</h4>
+
+      <div className="ch-sum">
+        <span><i>누적 수주</i><b>{compactWon(h.wonAmount)}</b><small>{h.won.length}건</small></span>
+        <span><i>입금</i><b className="ok">{compactWon(h.paidAmount)}</b>
+          <small>{h.unpaidAmount > 0 ? `미수 ${compactWon(h.unpaidAmount)}` : '전액 회수'}</small>
+        </span>
+        <span><i>진행중</i><b>{compactWon(h.openAmount)}</b><small>{h.open.length}건</small></span>
+        <span><i>실패</i><b>{h.lost.length}건</b><small>회고 있음</small></span>
+      </div>
+
+      {h.won.length > 0 && (
+        <>
+          <h5>수주 · 입금</h5>
+          <div className="ch-list">
+            {h.won.map((d) => (
+              <div className="ch-row" key={d.id}>
+                <span className="ch-main">
+                  <b>{d.title}</b>
+                  <small>
+                    {d.closedDate ? `${formatDate(d.closedDate)} 수주` : '종료일 미기록'}
+                    {d.serviceName ? ` · ${d.serviceName}` : ''}
+                  </small>
+                </span>
+                <span className="ch-nums">
+                  <b>{compactWon(d.amount)}</b>
+                  <small>{d.unpaid > 0 ? `미수 ${compactWon(d.unpaid)}` : '완납'}</small>
+                </span>
+                <span className="pill" style={{ '--c': settlementColor(d.settlement) }}>
+                  {settlementLabel(d.settlement)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {h.open.length > 0 && (
+        <>
+          <h5>진행중</h5>
+          <div className="ch-list">
+            {h.open.map((d) => {
+              const st = getStage(d.stage)
+              return (
+                <div className="ch-row" key={d.id}>
+                  <span className="ch-main">
+                    <b>{d.title}</b>
+                    <small>
+                      {d.expectedClose ? `${formatDate(d.expectedClose)} 마감 예정` : '마감일 미정'}
+                    </small>
+                  </span>
+                  <span className="ch-nums"><b>{compactWon(d.amount)}</b></span>
+                  <span className="pill" style={{ '--c': st.color }}>{st.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {h.lost.length > 0 && (
+        <>
+          <h5>실패 회고</h5>
+          <div className="ch-list">
+            {h.lost.map((d) => (
+              <div className="ch-row lost" key={d.id}>
+                <span className="ch-main">
+                  <b>{d.title}</b>
+                  <small>{d.lostReason || '회고 없음'}</small>
+                </span>
+                <span className="ch-nums"><b>{compactWon(d.amount)}</b>
+                  <small>{getStage(d.stage).label} 단계</small>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   )
 }

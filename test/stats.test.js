@@ -200,3 +200,13 @@ test('실패한 리드는 파이프라인·리드 어느 쪽에도 들어가지 
   assert.equal(r.leadCount, 1)
   assert.equal(r.total, 0)
 })
+
+/* --------------------------------- 금액 표시 --------------------------------- */
+
+test('wonWithCompact: 정확한 금액과 축약을 함께 보여준다', async () => {
+  const { wonWithCompact } = await import('../src/lib/format.js')
+  assert.equal(wonWithCompact(4500000), '₩4,500,000(450만원)')
+  assert.equal(wonWithCompact(340000000), '₩340,000,000(3.4억원)')
+  assert.equal(wonWithCompact(5000), '₩5,000(5,000원)')
+  assert.equal(wonWithCompact(0), '₩0(0원)')
+})

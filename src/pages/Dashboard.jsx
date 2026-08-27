@@ -1,5 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
+import DealModal from '../components/DealModal.jsx'
+import ActivityDetail from '../components/ActivityDetail.jsx'
+import { stripMarkdown } from '../lib/markdown.js'
 import StatCard from '../components/StatCard.jsx'
 import {
   compactWon, daysLeftInYear, formatDate, formatWon,
@@ -20,6 +23,9 @@ import {
 import { initial } from '../lib/accounts.js'
 
 export default function Dashboard() {
+  // 대시보드에서 바로 열어보는 상세 — 목록을 눌러 파이프라인/활동으로 이동하지 않아도 되게.
+  const [openDeal, setOpenDeal] = useState(null)
+  const [openActivity, setOpenActivity] = useState(null)
   const { deals, customers, activities, targets, ownerTargets, user } = useApp()
   const month = monthKey()
   const year = yearKey()
@@ -104,9 +110,9 @@ export default function Dashboard() {
         <StatCard label="지연" value={`${overdue.length}건`} sub={overdue.length ? '마감일 초과' : '지연 없음'} accent={overdue.length ? '#e5484d' : '#10b981'} />
       </div>
 
-      {/* 퍼널 — 단계별 잔량과 다음 단계 전환율을 같이 본다. */}
+      {/* 단계별 전환 — 어디서 새는지 보려는 것. 잔량 막대 + 다음 단계 전환율. */}
       <section className="panel">
-        <h3>파이프라인 퍼널</h3>
+        <h3>단계별 전환</h3>
         {pipe.openCount === 0 ? (
           <p className="empty">진행중인 영업기회가 없습니다.</p>
         ) : (
@@ -131,20 +137,35 @@ export default function Dashboard() {
         </small>
       </section>
 
-      <div className="split">
-        {/* 지금 손대야 할 딜. 대시보드가 행동으로 이어지게 하는 자리다. */}
-        <section className="panel">
-          <h3>지연된 영업기회 {overdue.length > 0 && <b className="count-warn">{overdue.length}</b>}</h3>
-          {overdue.length === 0
-            ? <p className="empty">마감일을 넘긴 딜이 없습니다.</p>
-            : <div className="mini-deals">{overdue.slice(0, 5).map((d) => <MiniDeal key={d.id} deal={d} overdue />)}</div>}
-        </section>
+      {/*
+        지금 손대야 할 딜. 대시보드가 행동으로 이어지게 하는 자리다.
+        지연은 '없는 게 정상' 이라 비었을 때는 아예 내리고 30일 예정만 남긴다 —
+        빈 카드로 자리를 반쯤 비워두면 정작 지연이 생겼을 때 눈에 안 걸린다.
+        건수는 위 요약 카드에 이미 있다.
+      */}
+      <div className={`split${overdue.length === 0 ? ' one' : ''}`}>
+        {overdue.length > 0 && (
+          <section className="panel">
+            <h3>지연된 영업기회 <b className="count-warn">{overdue.length}</b></h3>
+            <div className="mini-deals">
+              {overdue.slice(0, 5).map((d) => (
+                <MiniDeal key={d.id} deal={d} overdue onClick={() => setOpenDeal(d)} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="panel">
           <h3>30일 내 마감 예정</h3>
           {soon.length === 0
             ? <p className="empty">예정된 마감이 없습니다.</p>
-            : <div className="mini-deals">{soon.slice(0, 5).map((d) => <MiniDeal key={d.id} deal={d} />)}</div>}
+            : (
+              <div className="mini-deals">
+                {soon.slice(0, 5).map((d) => (
+                  <MiniDeal key={d.id} deal={d} onClick={() => setOpenDeal(d)} />
+                ))}
+              </div>
+            )}
         </section>
       </div>
 
@@ -182,16 +203,22 @@ export default function Dashboard() {
             : (
               <div className="recent">
                 {recent.map((a) => (
-                  <div className="rc-row" key={a.id}>
+                  <button
+                    type="button"
+                    className="rc-row"
+                    key={a.id}
+                    onClick={() => setOpenActivity(a)}
+                  >
                     <span className="rc-avatar">{initial(a.ownerName)}</span>
-                    <div className="rc-body">
-                      <div className="rc-head">
+                    <span className="rc-body">
+                      <span className="rc-head">
                         <b>{a.customerName || '거래처 미지정'}</b>
                         <span>{formatDate(a.date)} · {relativeDay(a.date)}</span>
-                      </div>
-                      {a.note && <p className="rc-note">{a.note}</p>}
-                    </div>
-                  </div>
+                      </span>
+                      {/* 서식 기호를 떼고 한 줄만 — 목록에서 마크다운을 그리면 줄이 흐트러진다. */}
+                      {a.note && <span className="rc-note">{stripMarkdown(a.note)}</span>}
+                    </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -205,23 +232,28 @@ export default function Dashboard() {
           <b>{won.deals.length ? topDeal(won.deals) : '—'}</b>
         </div>
       </section>
+
+      {openDeal && <DealModal deal={openDeal} onClose={() => setOpenDeal(null)} />}
+      {openActivity && (
+        <ActivityDetail activity={openActivity} onClose={() => setOpenActivity(null)} />
+      )}
     </main>
   )
 }
 
-/** 대시보드 목록용 한 줄 딜. 보드 카드보다 조용하게. */
-function MiniDeal({ deal, overdue }) {
+/** 대시보드 목록용 한 줄 딜. 보드 카드보다 조용하게. 누르면 상세가 열린다. */
+function MiniDeal({ deal, overdue, onClick }) {
   return (
-    <div className={`md-row${overdue ? ' overdue' : ''}`}>
-      <div className="md-main">
+    <button type="button" className={`md-row${overdue ? ' overdue' : ''}`} onClick={onClick}>
+      <span className="md-main">
         <b>{deal.title}</b>
         <small>{deal.customerName || '거래처 미지정'} · {deal.ownerName || '담당 없음'}</small>
-      </div>
-      <div className="md-side">
+      </span>
+      <span className="md-side">
         <b>{compactWon(deal.amount)}</b>
         <small>{formatDate(deal.expectedClose)} · {relativeDay(deal.expectedClose)}</small>
-      </div>
-    </div>
+      </span>
+    </button>
   )
 }
 
