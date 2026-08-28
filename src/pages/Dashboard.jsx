@@ -21,13 +21,17 @@ import {
   yearlyWon,
 } from '../lib/stats.js'
 import { initial } from '../lib/accounts.js'
+import { memberRows } from '../lib/teams.js'
 
 export default function Dashboard() {
   // 대시보드에서 바로 열어보는 상세 — 목록을 눌러 파이프라인/활동으로 이동하지 않아도 되게.
   const [openDeal, setOpenDeal] = useState(null)
   const [openActivity, setOpenActivity] = useState(null)
   const [dashboardTeam, setDashboardTeam] = useState('all')
-  const { deals, customers, activities, teams, targets, teamTargets, ownerTargets, user } = useApp()
+  const {
+    deals, customers, activities, members, teams,
+    targets, teamTargets, ownerTargets, user,
+  } = useApp()
   const month = monthKey()
   const year = yearKey()
   const selectedTeam = user.isAdmin && dashboardTeam !== 'all'
@@ -51,15 +55,27 @@ export default function Dashboard() {
     () => (scopeTeamId ? activities.filter((a) => a.teamId === scopeTeamId) : activities),
     [activities, scopeTeamId],
   )
+  const teamMembers = useMemo(
+    () => (scopeTeamId ? members.filter((m) => m.teamId === scopeTeamId) : members),
+    [members, scopeTeamId],
+  )
 
   const won = useMemo(() => monthlyWon(teamDeals, month), [teamDeals, month])
   const yearWon = useMemo(() => yearlyWon(teamDeals, year), [teamDeals, year])
   const pipe = useMemo(() => pipelineSummary(teamDeals), [teamDeals])
   const funnel = useMemo(() => stageFunnel(teamDeals), [teamDeals])
   const rate = useMemo(() => winRate(teamDeals), [teamDeals])
-  const board = useMemo(
+  const derivedBoard = useMemo(
     () => teamSummary(teamDeals, teamCustomers, teamActivities, month),
     [teamDeals, teamCustomers, teamActivities, month],
+  )
+  const board = useMemo(
+    () => memberRows(teamMembers, derivedBoard).sort((a, b) => (
+      b.wonAmount - a.wonAmount
+      || b.openAmount - a.openAmount
+      || a.name.localeCompare(b.name, 'ko')
+    )),
+    [teamMembers, derivedBoard],
   )
   const yearAlloc = useMemo(() => (ownerTargets && ownerTargets[year]) || {}, [ownerTargets, year])
   const mom = useMemo(() => monthOverMonth(teamDeals, month), [teamDeals, month])
