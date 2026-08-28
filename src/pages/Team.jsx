@@ -832,8 +832,8 @@ function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
   return (
     <section className="panel">
       <h3>연 매출목표</h3>
-      <form onSubmit={save} className="form">
-        <div className="grid2">
+      <form onSubmit={save} className="form target-form">
+        <div className="target-form-row">
           <label className="field"><span>연도</span>
             <select value={year} onChange={(e) => setYear(e.target.value)}>
               {years.map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}
@@ -852,8 +852,8 @@ function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
               </small>
             )}
           </label>
+          <button type="submit" className="primary target-save" disabled={busy}>목표 저장</button>
         </div>
-        <button type="submit" className="primary block" disabled={busy}>목표 저장</button>
       </form>
 
       {/* 연 목표 대비 현재 위치 */}

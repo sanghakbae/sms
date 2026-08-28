@@ -365,6 +365,16 @@ input, select, textarea { font-family: inherit; }
 }
 .row-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row-title { font-weight: 700; font-size: 15px; }
+.customer-card .row-main { overflow: hidden; }
+.customer-card .row-title {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  letter-spacing: -0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .row-sub { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 담당 영업자 — 이니셜 원에서 이름 칩으로 바꿨다. 첫 글자만으로는 누군지 모른다. */
 .row-owner {
@@ -1022,6 +1032,14 @@ button.col-head {
 .ys-top b.pct { color: var(--brand); }
 .ys-foot { font-size: 12.5px; color: var(--muted); }
 
+.target-form-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(220px, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+.target-save { min-width: 100px; min-height: var(--control-h); margin-top: 24px; white-space: nowrap; }
+
 /* 1~12월 막대. 열 12개를 고정해 한 해가 한눈에 들어오게. */
 .month-grid {
   margin-top: 18px;
@@ -1044,7 +1062,7 @@ button.col-head {
 .mg-cell.has .mg-month { color: var(--brand); }
 .mg-bar {
   width: 100%;
-  height: 56px;
+  height: 73px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1283,7 +1301,7 @@ button.col-head {
   .team-nums { gap: 10px 14px; }
   .ys-top { font-size: 12.5px; }
   .month-grid { gap: 5px; }
-  .mg-bar { height: 44px; }
+  .mg-bar { height: 57px; }
   .mg-amount { font-size: 10px; }
 
   .modal-body { padding-left: 16px; padding-right: 16px; }
@@ -1803,7 +1821,7 @@ button.primary.sm { color: #fff; }
   .row-card { padding: 10px 11px; }
   .customer-card { padding: 6px 7px; gap: 6px; }
   .customer-card .grade-dot { font-size: 11px; }
-  .customer-card .row-title { overflow: hidden; font-size: 13px; letter-spacing: -0.04em; text-overflow: ellipsis; white-space: nowrap; }
+  .customer-card .row-title { font-size: 13px; letter-spacing: -0.08em; }
   .customer-card .row-sub { font-size: 10.5px; }
   .customer-card .row-owner { font-size: 10px; }
   .col-name { font-size: 12px; }
