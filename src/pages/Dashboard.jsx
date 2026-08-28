@@ -26,14 +26,31 @@ export default function Dashboard() {
   // 대시보드에서 바로 열어보는 상세 — 목록을 눌러 파이프라인/활동으로 이동하지 않아도 되게.
   const [openDeal, setOpenDeal] = useState(null)
   const [openActivity, setOpenActivity] = useState(null)
-  const { deals, customers, activities, teamTargets, ownerTargets, user } = useApp()
+  const [dashboardTeam, setDashboardTeam] = useState('all')
+  const { deals, customers, activities, teams, targets, teamTargets, ownerTargets, user } = useApp()
   const month = monthKey()
   const year = yearKey()
+  const selectedTeam = user.isAdmin && dashboardTeam !== 'all'
+    ? teams.find((team) => team.id === dashboardTeam)
+    : null
+  const scopeTeamId = user.isAdmin ? selectedTeam?.id : user.teamId
+  const scopeLabel = user.isAdmin
+    ? (selectedTeam?.name || '전체')
+    : (teams.find((team) => team.id === user.teamId)?.name || '내 팀')
 
-  // 관리자는 전사 데이터를 구독하지만 대시보드는 누구나 자기 팀만 본다.
-  const teamDeals = useMemo(() => deals.filter((d) => d.teamId === user.teamId), [deals, user.teamId])
-  const teamCustomers = useMemo(() => customers.filter((c) => c.teamId === user.teamId), [customers, user.teamId])
-  const teamActivities = useMemo(() => activities.filter((a) => a.teamId === user.teamId), [activities, user.teamId])
+  // 관리자는 전체 또는 팀별 대시보드를 고르고, 팀장·팀원은 자기 팀만 본다.
+  const teamDeals = useMemo(
+    () => (scopeTeamId ? deals.filter((d) => d.teamId === scopeTeamId) : deals),
+    [deals, scopeTeamId],
+  )
+  const teamCustomers = useMemo(
+    () => (scopeTeamId ? customers.filter((c) => c.teamId === scopeTeamId) : customers),
+    [customers, scopeTeamId],
+  )
+  const teamActivities = useMemo(
+    () => (scopeTeamId ? activities.filter((a) => a.teamId === scopeTeamId) : activities),
+    [activities, scopeTeamId],
+  )
 
   const won = useMemo(() => monthlyWon(teamDeals, month), [teamDeals, month])
   const yearWon = useMemo(() => yearlyWon(teamDeals, year), [teamDeals, year])
@@ -51,7 +68,9 @@ export default function Dashboard() {
   const recent = useMemo(() => teamActivities.slice(0, 5), [teamActivities])
 
   // 목표는 연 단위로 잡는다. 달성률도 올해 누적 기준.
-  const target = Number((teamTargets?.[year] || {})[user.teamId]) || 0
+  const target = user.isAdmin && !selectedTeam
+    ? Number(targets?.[year]) || 0
+    : Number((teamTargets?.[year] || {})[scopeTeamId]) || 0
   const progress = targetProgress(yearWon.amount, target)
   const remain = Math.max(0, target - yearWon.amount)
   const daysLeft = daysLeftInYear()
@@ -61,10 +80,32 @@ export default function Dashboard() {
 
   return (
     <main className="page dashboard">
+      {user.isAdmin && (
+        <div className="dashboard-scope" aria-label="대시보드 범위">
+          <div className="seg">
+            <button
+              type="button"
+              className={!selectedTeam ? 'on' : ''}
+              onClick={() => setDashboardTeam('all')}
+            >전체</button>
+            {teams.map((team) => (
+              <button
+                type="button"
+                className={selectedTeam?.id === team.id ? 'on' : ''}
+                onClick={() => setDashboardTeam(team.id)}
+                key={team.id}
+              >{team.name}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 이번 달 목표 — 대시보드에서 가장 먼저 답해야 할 질문. */}
       <section className="hero">
         <div className="hero-main">
-          <span className="hero-label">{yearLabel(year)} 누적 수주</span>
+          <span className="hero-label">
+            {scopeLabel} · {yearLabel(year)} 누적 수주
+          </span>
           <strong className="hero-value">{compactWon(yearWon.amount)}</strong>
           <span className="hero-sub">
             {yearWon.count}건 성사

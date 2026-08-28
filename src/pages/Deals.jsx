@@ -152,9 +152,9 @@ export default function Deals() {
                 tabIndex={stacked ? 0 : -1}
               >
                 <span className="col-name">{stage.label}</span>
+                <span className="col-sum">{compactWon(sum)}</span>
                 <span className="col-count">{items.length}</span>
                 {stacked && <span className="col-toggle" aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>}
-                <span className="col-sum">{compactWon(sum)}</span>
               </button>
               {!isCollapsed && (
                 <div className="col-body" id={`col-body-${stage.id}`}>
