@@ -40,7 +40,12 @@ import {
   writeAudit,
 } from '../lib/store.js'
 import { isAdminEmail } from '../lib/accounts.js'
-import { canUseData, myRole as findMyRole, myTeamId as findMyTeam } from '../lib/teams.js'
+import {
+  canUseData,
+  defaultTeamId as getDefaultTeamId,
+  myRole as findMyRole,
+  myTeamId as findMyTeam,
+} from '../lib/teams.js'
 import { ACTIONS } from '../lib/audit.js'
 import { normalizeEmail } from '../lib/accounts.js'
 import { Ctx, useApp } from './ctx.js'
@@ -83,6 +88,7 @@ export function AppProvider({ children }) {
   // 구독별 최신 오류. Firestore 는 오류가 나면 리스너를 떼어버리므로
   // 어느 구독이 죽었는지 따로 기억했다가 재구독으로 되살린다.
   const errorsRef = useRef({})
+  const legacyMigrationRef = useRef('')
 
   const sync = useCallback(() => {
     const first = Object.values(errorsRef.current).find(Boolean)
@@ -167,12 +173,38 @@ export function AppProvider({ children }) {
     return () => unsubs.forEach((fn) => fn())
   }, [authUser, retry, onData, onErr])
 
-  // 팀 격리 도입 전에 만든 설정에는 기본 팀 id 가 없다. 관리자가 접속하면
-  // '배지터' 팀의 실제 id 를 한 번 저장해 이후 신규 사용자가 안전하게 자동 배정되게 한다.
+  // 팀 격리 도입 전 데이터는 teamId 가 없다. 관리자가 접속하면 기본 팀인 배지터로
+  // 한 번 이관해 전체 수치와 배지터 수치가 같은 기준으로 집계되게 한다.
   useEffect(() => {
     if (!authUser || !isAdmin || teams.length === 0) return
-    ensureDefaultTeam(teams).catch((err) => console.warn('기본 팀 설정 실패', err))
-  }, [authUser, isAdmin, teams])
+    const baejiterId = getDefaultTeamId(teams)
+    if (!baejiterId) return
+    const key = `${authUser.uid}:${baejiterId}`
+    if (legacyMigrationRef.current === key) return
+    legacyMigrationRef.current = key
+
+    const migrate = async () => {
+      try {
+        await ensureDefaultTeam(teams)
+        let total = 0
+        for (const name of ['deals', 'customers', 'activities']) {
+          total += await assignMissingTeam(name, baejiterId)
+        }
+        if (total > 0) {
+          setToast(`기존 데이터 ${total}건을 배지터 팀에 반영했습니다.`)
+          writeAudit(user, ACTIONS.DATA_MIGRATE, {
+            targetLabel: '기존 데이터 자동 이관',
+            to: '배지터',
+            note: `${total}건`,
+          })
+        }
+      } catch (err) {
+        legacyMigrationRef.current = ''
+        console.warn('배지터 기본 팀 설정·데이터 이관 실패', err)
+      }
+    }
+    migrate()
+  }, [authUser, isAdmin, teams, user])
 
   // 2단계 — 업무 데이터. 내 팀이 정해진 뒤에 구독한다.
   // 팀이 바뀌면 활동 구독을 다시 열어 남의 팀 활동이 남지 않게 한다.
