@@ -67,7 +67,7 @@ export default function Customers() {
         {list.map((c) => {
           const grade = getGrade(c.grade)
           return (
-            <button type="button" className="row-card" key={c.id} onClick={() => setEditing(c)}>
+            <button type="button" className="row-card customer-card" key={c.id} onClick={() => setEditing(c)}>
               {/* 글자 하나만 두면 이니셜로 읽힌다 — 무엇의 등급인지 붙여준다. */}
               <span
                 className="grade-dot"

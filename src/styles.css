@@ -1680,7 +1680,73 @@ button.primary.sm { color: #fff; }
    빈 단계는 머리만 남겨 접어서 세로 길이를 줄인다.
 */
 @media (max-width: 719px) {
-  .activity-toolbar { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  :root { --control-h: 36px; --tabbar-h: 54px; }
+  body { font-size: 13px; }
+  input, select, textarea { font-size: 14px !important; }
+  .topbar { padding: 10px 12px; }
+  .topbar h1 { font-size: 16px; }
+  .topbar .who { font-size: 11.5px; }
+  .topbar-logout { font-size: 10.5px; }
+  .page { padding: 10px; }
+  .toolbar { gap: 7px; }
+  .panel { padding: 12px; }
+  .panel h3 { font-size: 11.5px; }
+  .hero { padding: 14px; gap: 10px; }
+  .hero-label { font-size: 11px; }
+  .hero-value { font-size: 26px; }
+  .hero-sub { gap: 6px; font-size: 11px; }
+  .hero-goal { padding: 11px; }
+  .goal-top { font-size: 11px; }
+  .goal-top b { font-size: 17px; }
+  .goal-foot { font-size: 10.5px; }
+  .stat-grid { gap: 8px; }
+  .stat-card { padding: 10px; }
+  .stat-label { font-size: 10.5px; }
+  .stat-value { font-size: 19px; }
+  .stat-sub { font-size: 10px; }
+  .primary { min-height: 34px; padding: 6px 10px; font-size: 12px; }
+  .chip { padding: 4px 8px; font-size: 11.5px; }
+  .row-card { padding: 10px 11px; }
+  .customer-card { padding: 6px 7px; gap: 6px; }
+  .customer-card .grade-dot { font-size: 12px; }
+  .customer-card .row-title { font-size: 14px; }
+  .customer-card .row-sub { font-size: 11.5px; }
+  .customer-card .row-owner { font-size: 11px; }
+  .col-name { font-size: 12px; }
+  .col-count, .col-sum { font-size: 10.5px; }
+  .deal-card { padding: 8px; gap: 4px; }
+  .deal-title, .deal-amount { font-size: 12px; }
+  .deal-customer { font-size: 10.5px; }
+  .deal-meta { font-size: 10px; }
+  .tl-group { gap: 5px; }
+  .tl-date { font-size: 11px; }
+  .tl-item { gap: 7px; padding: 7px 8px; }
+  .tl-icon { font-size: 16px; }
+  .tl-head { font-size: 11.5px; }
+  .tl-cust, .tl-owner, .tl-note-line { font-size: 10.5px; }
+  .deals > .empty { margin: 4px 0; padding: 4px 0; }
+
+  .modal-head h2 { font-size: 15px; }
+  .modal-body { font-size: 13px; }
+  .field > span { font-size: 10.5px; }
+  .foot-row button { font-size: 12px; }
+  .activity-form-modal {
+    width: 90vw;
+    height: 90vh;
+    height: 90dvh;
+  }
+  .activity-form-modal .modal-head { padding: 11px 13px 9px; }
+  .activity-form-modal .modal-body { padding: 10px 12px; overflow-y: auto; }
+  .activity-form-modal .modal-foot { padding: 9px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .activity-form-modal #act-form { gap: 10px; }
+  .activity-form-modal .stage-picker { gap: 4px; }
+  .activity-form-modal .stage-btn { padding: 5px 9px; font-size: 11px; }
+  .activity-form-modal .mde-btn { min-width: 24px; height: 24px; font-size: 11px; }
+  .activity-form-modal .mde-toggle { height: 22px; font-size: 9.5px; }
+  .activity-form-modal .mde-foot .hint,
+  .activity-form-modal .mde-count { font-size: 9.5px; }
+
+  .activity-toolbar { flex-wrap: nowrap; align-items: center; gap: 4px; }
   .activity-toolbar .activity-filters {
     flex: 1 1 0;
     min-width: 0;
@@ -1688,10 +1754,19 @@ button.primary.sm { color: #fff; }
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
+    gap: 4px;
   }
   .activity-toolbar .activity-filters::-webkit-scrollbar { display: none; }
   .activity-toolbar .chip,
-  .activity-toolbar .primary { flex: none; border-radius: 5px; white-space: nowrap; }
+  .activity-toolbar .primary {
+    flex: none;
+    min-height: 26px;
+    border-radius: 5px;
+    padding: 2px 5px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+  .activity-toolbar .primary { padding-inline: 7px; font-size: 12px; }
 
   .board {
     flex-direction: column;

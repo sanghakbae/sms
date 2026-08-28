@@ -249,7 +249,6 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
             onChange={(v) => setForm((f) => ({ ...f, note: v }))}
             rows={4}
             placeholder="논의 내용, 다음 액션…"
-            autoFocus
           />
         </div>
       </form>

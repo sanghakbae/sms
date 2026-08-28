@@ -11,8 +11,8 @@ export default function Activities() {
   const [typeFilter, setTypeFilter] = useState('')
 
   const teamActivities = useMemo(
-    () => activities.filter((a) => a.teamId === user.teamId),
-    [activities, user.teamId],
+    () => (user.isAdmin ? activities : activities.filter((a) => a.teamId === user.teamId)),
+    [activities, user.isAdmin, user.teamId],
   )
   const list = useMemo(
     () => (typeFilter ? teamActivities.filter((a) => a.type === typeFilter) : teamActivities),
