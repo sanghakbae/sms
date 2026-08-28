@@ -1680,6 +1680,19 @@ button.primary.sm { color: #fff; }
    빈 단계는 머리만 남겨 접어서 세로 길이를 줄인다.
 */
 @media (max-width: 719px) {
+  .activity-toolbar { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  .activity-toolbar .activity-filters {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .activity-toolbar .activity-filters::-webkit-scrollbar { display: none; }
+  .activity-toolbar .chip,
+  .activity-toolbar .primary { flex: none; border-radius: 5px; white-space: nowrap; }
+
   .board {
     flex-direction: column;
     overflow-x: hidden;

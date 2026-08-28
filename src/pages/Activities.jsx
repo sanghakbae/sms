@@ -39,8 +39,8 @@ export default function Activities() {
 
   return (
     <main className="page">
-      <div className="toolbar">
-        <div className="chips grow">
+      <div className="toolbar activity-toolbar">
+        <div className="chips grow activity-filters">
           <button type="button" className={`chip${typeFilter === '' ? ' on' : ''}`} onClick={() => setTypeFilter('')}>전체</button>
           {ACTIVITY_TYPES.map((t) => (
             <button
