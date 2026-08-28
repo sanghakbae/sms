@@ -12,6 +12,7 @@ import {
   teamSummary,
   allocationSummary,
   yearlyWon,
+  yearsWithData,
 } from '../src/lib/stats.js'
 
 const DEALS = [
@@ -129,6 +130,13 @@ test('yearlyWon: 그 해 수주만 합산한다', () => {
   assert.equal(yearlyWon(deals, '2026').amount, 3000)
   assert.equal(yearlyWon(deals, '2026').count, 2)
   assert.equal(yearlyWon(deals, '2025').amount, 9000)
+})
+
+test('연도 선택은 2030년까지 항상 제공한다', () => {
+  const years = yearsWithData([])
+  for (const year of ['2026', '2027', '2028', '2029', '2030']) {
+    assert.ok(years.includes(year))
+  }
 })
 
 test('teamSummary: 그 해 누적 수주를 담당자별로 센다', () => {

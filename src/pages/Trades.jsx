@@ -48,7 +48,7 @@ export default function Trades() {
 
   return (
     <main className="page">
-      <div className="stat-grid">
+      <div className="stat-grid trade-summary-grid">
         <StatCard label="거래" value={`${sum.count}건`} sub={`수주 ${compactWon(sum.wonAmount)}`} />
         <StatCard label="입금" value={compactWon(sum.paidAmount)} sub={`완납 ${sum.settledCount}건`} accent="#10b981" />
         <StatCard

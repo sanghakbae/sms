@@ -35,6 +35,7 @@ const count = (value) => (Number(value) || 0).toLocaleString('ko-KR')
 function MemberTableHead() {
   return (
     <div className="team-table-head" aria-hidden="true">
+      <span className="team-head-team">팀명</span>
       <span className="team-head-member">팀원</span>
       <div className="team-metric-head">
         {MEMBER_COLUMNS.map((label) => <span key={label}>{label}</span>)}
@@ -59,12 +60,40 @@ function MemberMetrics({ member: m, allocOf }) {
   )
 }
 
+function MemberStatusTable({ groups, admins, allocOf }) {
+  const populated = (groups || []).filter((group) => group.members.length > 0)
+  if (populated.length === 0) return null
+
+  return (
+    <div className="member-status-table">
+      <MemberTableHead />
+      <div className="team-list">
+        {populated.flatMap((group) => group.members.map((member) => (
+          <div className="team-row member-row" key={`${group.team.id}:${member.key}`}>
+            <span className="team-row-team">{group.team.name}</span>
+            <span className="avatar">{initial(member.name)}</span>
+            <div className="team-who" title={member.email || ''}>
+              <b>
+                {member.name}
+                {isAdminEmail(member.email, admins) && <span className="tag admin">관리자</span>}
+                {member.role === ROLE_LEADER && <span className="tag leader">팀장</span>}
+                {!member.registered && <span className="tag">옛 데이터</span>}
+              </b>
+            </div>
+            <MemberMetrics member={member} allocOf={allocOf} />
+          </div>
+        )))}
+      </div>
+    </div>
+  )
+}
+
 /** 관리자 전용 화면 — 팀 편성, 목표 배분, 팀원 현황, 관리자 명단, 내보내기. */
 export default function Team() {
   const {
-    deals, customers, activities, admins, members, teams,
+    deals, customers, activities, admins, invites, members, teams,
     targets, teamTargets, ownerTargets,
-    user, setAdmins, setYearlyTarget, setOwnerTargets,
+    user, setAdmins, setInvite, removeInvite, sendInviteEmail, setYearlyTarget, setOwnerTargets,
     setTeams, setTeamTargets, setMemberTeam, setMemberRole, removeMember,
     assignMissingTeam, countMissingTeam, notify,
   } = useApp()
@@ -105,7 +134,11 @@ export default function Team() {
         groups={groups}
         waiting={waiting}
         admins={admins}
+        invites={invites}
         setTeams={setTeams}
+        setInvite={setInvite}
+        removeInvite={removeInvite}
+        sendInviteEmail={sendInviteEmail}
         setMemberTeam={setMemberTeam}
         setMemberRole={setMemberRole}
         removeMember={removeMember}
@@ -146,33 +179,10 @@ export default function Team() {
       <section className="panel">
         <h3>팀원 현황 · {monthLabel(month)}</h3>
         {groups.length === 0 && <p className="empty">아직 만든 팀이 없습니다. 위에서 팀을 만들어주세요.</p>}
-        {groups.map((g) => (
-          <div className="team-group" key={g.team.id}>
-            <div className="tg-head">
-              <b>{g.team.name}</b>
-              <small>{g.members.length}명</small>
-            </div>
-            {g.members.length === 0 && <p className="empty sm">팀원이 없습니다.</p>}
-            {g.members.length > 0 && <MemberTableHead />}
-            <div className="team-list">
-              {g.members.map((m) => (
-                <div className="team-row member-row" key={m.key}>
-                  <span className="avatar">{initial(m.name)}</span>
-                  {/* 이메일은 화면에 띄우지 않는다 — 같은 이름이 겹칠 때만 tooltip 으로 확인한다. */}
-                  <div className="team-who" title={m.email || ''}>
-                    <b>
-                      {m.name}
-                      {isAdminEmail(m.email, admins) && <span className="tag admin">관리자</span>}
-                      {m.role === ROLE_LEADER && <span className="tag leader">팀장</span>}
-                      {!m.registered && <span className="tag">옛 데이터</span>}
-                    </b>
-                  </div>
-                  <MemberMetrics member={m} allocOf={allocOf} />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+        {groups.length > 0 && groups.every((group) => group.members.length === 0) && (
+          <p className="empty">등록된 팀원이 없습니다.</p>
+        )}
+        <MemberStatusTable groups={groups} admins={admins} allocOf={allocOf} />
       </section>
 
       <AdminRoster admins={admins} rows={rows} user={user} setAdmins={setAdmins} notify={notify} />
@@ -234,22 +244,7 @@ function LeaderView({ group, month, teamTargets, allocOf, admins }) {
       <section className="panel">
         <h3>팀원 현황 · {monthLabel(month)}</h3>
         {group.members.length === 0 && <p className="empty">팀원이 없습니다.</p>}
-        {group.members.length > 0 && <MemberTableHead />}
-        <div className="team-list">
-          {group.members.map((m) => (
-            <div className="team-row member-row" key={m.key}>
-              <span className="avatar">{initial(m.name)}</span>
-              <div className="team-who" title={m.email || ''}>
-                <b>
-                  {m.name}
-                  {isAdminEmail(m.email, admins) && <span className="tag admin">관리자</span>}
-                  {m.role === ROLE_LEADER && <span className="tag leader">팀장</span>}
-                </b>
-              </div>
-              <MemberMetrics member={m} allocOf={allocOf} />
-            </div>
-          ))}
-        </div>
+        <MemberStatusTable groups={[group]} admins={admins} allocOf={allocOf} />
         <small className="hint">
           팀원 활동을 눌러 <b>피드백</b>을 남길 수 있습니다(활동 탭).
           목표 배분과 팀 편성은 관리자가 정합니다.
@@ -261,15 +256,92 @@ function LeaderView({ group, month, teamTargets, allocOf, admins }) {
 
 /* --------------------------------- 팀 편성 --------------------------------- */
 
+function InvitePanel({ teams, invites, setInvite, removeInvite, sendInviteEmail, notify }) {
+  const [email, setEmail] = useState('')
+  const [teamId, setTeamId] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const sendMail = (targetEmail, targetTeamId) => (
+    sendInviteEmail(targetEmail, nameOfTeam(teams, targetTeamId))
+  )
+
+  const submit = async (event) => {
+    event.preventDefault()
+    const target = normalizeEmail(email)
+    if (!looksLikeEmail(target)) { notify('초대할 이메일을 확인해주세요.'); return }
+    if (!teamId) { notify('초대할 팀을 선택해주세요.'); return }
+    setBusy(true)
+    try {
+      await setInvite(target, teamId)
+      await sendMail(target, teamId)
+      setEmail('')
+      notify('초대 메일을 보냈습니다.')
+    } catch (error) {
+      notify(error?.message || '초대 메일을 보내지 못했습니다.')
+    } finally { setBusy(false) }
+  }
+
+  const sorted = [...(invites || [])].sort((a, b) => String(a.email).localeCompare(String(b.email)))
+
+  return (
+    <div className="roster-block invite-block">
+      <h4>메일로 초대</h4>
+      <form className="invite-form" onSubmit={submit}>
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="이메일"
+          aria-label="초대할 이메일"
+        />
+        <select value={teamId} onChange={(event) => setTeamId(event.target.value)} aria-label="초대할 팀">
+          <option value="">팀 선택…</option>
+          {teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}
+        </select>
+        <button type="submit" className="primary" disabled={busy || teams.length === 0}>초대 메일</button>
+      </form>
+      {sorted.length > 0 && (
+        <div className="invite-list">
+          {sorted.map((invite) => (
+            <div className="invite-row" key={invite.id || invite.email}>
+              <b>{invite.email}</b>
+              <span>{nameOfTeam(teams, invite.teamId)}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await sendMail(invite.email, invite.teamId)
+                    notify('초대 메일을 다시 보냈습니다.')
+                  } catch (error) {
+                    notify(error?.message || '초대 메일을 보내지 못했습니다.')
+                  }
+                }}
+              >재발송</button>
+              <button
+                type="button"
+                className="danger ghost sm"
+                onClick={async () => {
+                  await removeInvite(invite.email)
+                  notify('초대를 취소했습니다.')
+                }}
+              >취소</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * 팀을 만들고 사람을 넣는다.
  *
- * '팀원 추가' 는 이메일을 받아 적는 방식이 아니다 — 로그인하면 본인이 명단에 올라오고
- * (store.js 의 registerMember), 관리자는 그 목록에서 팀을 골라 넣는다.
- * 팀에 넣는 것이 곧 승인이다. 팀이 없으면 데이터를 보지도, 만들지도 못한다.
+ * 이메일 초대는 팀을 미리 지정하고, 첫 로그인 때 그 팀으로 자동 배정한다.
+ * 이미 로그인한 사용자는 배정 대기 목록에서도 바로 팀에 넣을 수 있다.
  */
 function TeamRoster({
-  teams, groups, waiting, admins, setTeams, setMemberTeam, setMemberRole, removeMember, notify,
+  teams, groups, waiting, admins, invites,
+  setTeams, setInvite, removeInvite, sendInviteEmail, setMemberTeam, setMemberRole, removeMember, notify,
 }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -339,6 +411,15 @@ function TeamRoster({
     <section className="panel">
       <h3>팀 편성</h3>
 
+      <InvitePanel
+        teams={teams}
+        invites={invites}
+        setInvite={setInvite}
+        removeInvite={removeInvite}
+        sendInviteEmail={sendInviteEmail}
+        notify={notify}
+      />
+
       {/* 로그인은 했지만 아직 팀이 없는 사람 — 여기서 팀에 넣는다. */}
       <div className="roster-block">
         <h4>
@@ -359,7 +440,7 @@ function TeamRoster({
                     <span className="avatar">{initial(r.name)}</span>
                     <div className="roster-who" title={r.email || ''}>
                       <b>
-                        {r.name}
+                        <span className="roster-name">{r.name}</span>
                         {isAdminEmail(r.email, admins) && <span className="tag admin">관리자</span>}
                         {!r.registered && <span className="tag">옛 데이터</span>}
                       </b>
@@ -453,7 +534,7 @@ function TeamRoster({
                       <span className="avatar">{initial(r.name)}</span>
                       <div className="roster-who" title={r.email || ''}>
                         <b>
-                          {r.name}
+                          <span className="roster-name">{r.name}</span>
                           {isAdminEmail(r.email, admins) && <span className="tag admin">관리자</span>}
                           {r.role === ROLE_LEADER && <span className="tag leader">팀장</span>}
                         </b>
@@ -765,9 +846,11 @@ function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
               placeholder={target ? formatAmountInput(target) : '3,000,000,000'}
               inputMode="numeric"
             />
-            <small className={`amount-preview${typed ? '' : ' zero'}`}>
-              {String(amount).trim() === '' ? '숫자만 입력하세요' : wonWithCompact(typed)}
-            </small>
+            {String(amount).trim() !== '' && (
+              <small className={`amount-preview${typed ? '' : ' zero'}`}>
+                {wonWithCompact(typed)}
+              </small>
+            )}
           </label>
         </div>
         <button type="submit" className="primary block" disabled={busy}>목표 저장</button>
@@ -1086,13 +1169,11 @@ function AdminRoster({ admins, rows, user, setAdmins, notify }) {
         </form>
       )}
 
-      <small className="hint">
-        <b>관리자</b>는 전사 데이터를 보고 팀 편성·목표를 정합니다.
-        <b>팀장</b>은 자기 팀 데이터를 모두 고칠 수 있고 활동에 피드백을 남깁니다(위 팀 편성에서 지정).
-        <b>팀원</b>은 자기 팀 데이터를 보고 자기가 만든 것만 고칩니다.
-        <br />
-        기본 관리자는 코드에 박혀 있어 화면에서 해제할 수 없습니다 — 명단을 잘못 비워
-        아무도 들어오지 못하는 상황을 막기 위한 장치입니다.
+      <small className="hint admin-help">
+        <span><b>관리자</b> · 전사 데이터, 팀 편성, 목표 관리</span>
+        <span><b>팀장</b> · 자기 팀 데이터 관리와 활동 피드백</span>
+        <span><b>팀원</b> · 자기 팀 조회와 본인 작성 데이터 수정</span>
+        <span>기본 관리자는 관리자 공백을 막기 위해 화면에서 해제할 수 없습니다.</span>
       </small>
     </section>
   )

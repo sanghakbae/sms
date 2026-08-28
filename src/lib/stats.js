@@ -165,9 +165,11 @@ export function monthlySeries(deals, year) {
   })
 }
 
-/** 데이터에 등장하는 연도 목록(내림차순). 올해는 항상 포함한다. */
+/** 데이터에 등장하는 연도 목록(내림차순). 올해부터 2030년까지는 항상 포함한다. */
 export function yearsWithData(deals) {
-  const set = new Set([yearKey()])
+  const current = Number(yearKey())
+  const set = new Set()
+  for (let year = current; year <= Math.max(current, 2030); year += 1) set.add(String(year))
   for (const d of deals || []) {
     const m = closedMonth(d)
     if (m) set.add(m.slice(0, 4))

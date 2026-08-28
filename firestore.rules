@@ -46,7 +46,7 @@ service cloud.firestore {
     // src/lib/accounts.js 의 BOOTSTRAP_ADMINS 와 반드시 같게 유지할 것.
     // 명단을 잘못 비워 아무도 못 들어가는 상황을 막는 안전장치라 화면에서 못 지운다.
     function bootstrapAdmins() {
-      return ['qa@muhayu.com', 'totoriverce@tukorea.ac.kr'];
+      return ['totoriverce@tukorea.ac.kr'];
     }
 
     // 화면에서 추가한 관리자 명단(settings/admins). 문서가 없으면 빈 목록.
@@ -83,6 +83,13 @@ service cloud.firestore {
     function defaultTeamId() {
       return exists(/databases/$(database)/documents/settings/teams)
         ? get(/databases/$(database)/documents/settings/teams).data.get('defaultTeamId', '')
+        : '';
+    }
+
+    // 관리자가 이메일로 미리 지정한 초대 팀. 본인 이메일 문서만 적용된다.
+    function invitedTeamId() {
+      return exists(/databases/$(database)/documents/invites/$(email()))
+        ? get(/databases/$(database)/documents/invites/$(email())).data.get('teamId', '')
         : '';
     }
 
@@ -147,7 +154,9 @@ service cloud.firestore {
             && request.resource.data.email == email()
             && (request.resource.data.teamId == ''
                 || (defaultTeamId() != ''
-                    && request.resource.data.teamId == defaultTeamId()))
+                    && request.resource.data.teamId == defaultTeamId())
+                || (invitedTeamId() != ''
+                    && request.resource.data.teamId == invitedTeamId()))
             && request.resource.data.get('role', 'member') == 'member')
       );
 
@@ -158,11 +167,21 @@ service cloud.firestore {
         isAdmin()
         || (request.auth.uid == uid
             && request.resource.data.email == email()
-            && request.resource.data.teamId == resource.data.teamId
+            && (request.resource.data.teamId == resource.data.teamId
+                || (resource.data.teamId == ''
+                    && invitedTeamId() != ''
+                    && request.resource.data.teamId == invitedTeamId()))
             && request.resource.data.get('role', 'member') == resource.data.get('role', 'member'))
       );
 
       allow delete: if isAdmin();
+    }
+
+    /* ------------------------------- 이메일 초대 ------------------------------- */
+    match /invites/{inviteEmail} {
+      allow get: if isAdmin() || (isMember() && inviteEmail == email());
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     /* ------------------------------- 팀 데이터 ------------------------------- */

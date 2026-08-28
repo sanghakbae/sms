@@ -61,6 +61,7 @@ export default function Dashboard() {
   )
 
   const won = useMemo(() => monthlyWon(teamDeals, month), [teamDeals, month])
+  const bestDeal = useMemo(() => topDeal(won.deals), [won.deals])
   const yearWon = useMemo(() => yearlyWon(teamDeals, year), [teamDeals, year])
   const pipe = useMemo(() => pipelineSummary(teamDeals), [teamDeals])
   const funnel = useMemo(() => stageFunnel(teamDeals), [teamDeals])
@@ -291,7 +292,14 @@ export default function Dashboard() {
         <div className="mini-row"><span>등록 거래처</span><b>{teamCustomers.length}곳</b></div>
         <div className="mini-row">
           <span>이번 달 최고 수주</span>
-          <b>{won.deals.length ? topDeal(won.deals) : '—'}</b>
+          {bestDeal
+            ? (
+              <b className="mini-best">
+                <span className="mini-best-title">{bestDeal.title}</span>
+                <span className="mini-best-amount">({formatWon(bestDeal.amount)})</span>
+              </b>
+            )
+            : <b>—</b>}
         </div>
       </section>
 
@@ -320,6 +328,6 @@ function MiniDeal({ deal, overdue, onClick }) {
 }
 
 function topDeal(deals) {
-  const top = deals.reduce((a, b) => ((Number(b.amount) || 0) > (Number(a.amount) || 0) ? b : a))
-  return `${top.title} (${formatWon(top.amount)})`
+  if (!deals.length) return null
+  return deals.reduce((a, b) => ((Number(b.amount) || 0) > (Number(a.amount) || 0) ? b : a))
 }

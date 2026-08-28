@@ -12,8 +12,11 @@ import {
   removeActivity,
   removeCustomer,
   removeDeal,
+  removeInvite,
   removeMember,
   setAdmins,
+  setInvite,
+  sendInviteEmail,
   setMemberRole,
   setMemberTeam,
   setOwnerTargets,
@@ -28,6 +31,7 @@ import {
   subscribeAuditLogs,
   subscribeCustomers,
   subscribeDeals,
+  subscribeInvites,
   subscribeMembers,
   subscribeOwnerTargets,
   subscribeServices,
@@ -69,6 +73,7 @@ export function AppProvider({ children }) {
 
   // 설정·명단 — 팀과 무관하게 로그인만 하면 읽는다.
   const [admins, setAdminList] = useState([])
+  const [invites, setInviteList] = useState([])
   const [members, setMembers] = useState([])
   const [teams, setTeamList] = useState([])
   const [services, setServiceList] = useState([])
@@ -116,6 +121,7 @@ export function AppProvider({ children }) {
       setTeamTargetMap({})
       setOwnerTargetMap({})
       setAdminList([])
+      setInviteList([])
       setMembers([])
       setTeamList([])
       setServiceList([])
@@ -235,6 +241,15 @@ export function AppProvider({ children }) {
     return subscribeAuditLogs(300, onData('audit', setAuditLogs), onErr('audit'))
   }, [authUser, isAdmin, retry, onData, onErr])
 
+  // 이메일 초대 목록에는 개인정보가 있으므로 관리자만 목록 구독을 연다.
+  useEffect(() => {
+    if (!authUser || !authUser.known || !isAdmin) {
+      setInviteList([])
+      return undefined
+    }
+    return subscribeInvites(onData('invites', setInviteList), onErr('invites'))
+  }, [authUser, isAdmin, retry, onData, onErr])
+
   const retryData = useCallback(() => setRetry((n) => n + 1), [])
 
   useEffect(() => {
@@ -334,6 +349,19 @@ export function AppProvider({ children }) {
         for (const e of before) if (!after.has(e)) log(ACTIONS.ADMIN_REMOVE, { targetLabel: e })
       },
 
+      setInvite: async (email, teamId) => {
+        await setInvite(user, email, teamId)
+        log(ACTIONS.MEMBER_INVITE, {
+          targetLabel: normalizeEmail(email),
+          to: nameOfTeamId(teamId),
+        })
+      },
+      sendInviteEmail,
+      removeInvite: async (email) => {
+        await removeInvite(email)
+        log(ACTIONS.MEMBER_INVITE_REMOVE, { targetLabel: normalizeEmail(email) })
+      },
+
       setServices,
 
       setTeams: async (items) => {
@@ -401,6 +429,7 @@ export function AppProvider({ children }) {
     teamTargets,
     ownerTargets,
     admins,
+    invites,
     members,
     teams,
     services,
@@ -419,7 +448,7 @@ export function AppProvider({ children }) {
     ...actions,
   }), [
     user, authReady, customers, deals, activities, targets, teamTargets, ownerTargets,
-    admins, members, teams, services, auditLogs,
+    admins, invites, members, teams, services, auditLogs,
     dataError, retryData, toast, notify, login, logout, actions,
   ])
 

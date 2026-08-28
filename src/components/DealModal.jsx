@@ -181,9 +181,11 @@ function DealForm({ deal, customers, services, members, isAdmin, canEdit, canDel
           </label>
           <label className="field"><span>예상 금액(원)</span>
             <input value={form.amount} onChange={set('amount')} placeholder="5,000,000" inputMode="numeric" />
-            <small className={`amount-preview${amountTyped ? '' : ' zero'}`}>
-              {String(form.amount).trim() === '' ? '숫자만 입력하세요' : wonWithCompact(amountTyped)}
-            </small>
+            {String(form.amount).trim() !== '' && (
+              <small className={`amount-preview${amountTyped ? '' : ' zero'}`}>
+                {wonWithCompact(amountTyped)}
+              </small>
+            )}
           </label>
         </div>
 

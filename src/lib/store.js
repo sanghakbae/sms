@@ -4,6 +4,7 @@
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithPopup,
   signInWithPopup,
   signOut,
 } from 'firebase/auth'
@@ -74,6 +75,77 @@ export async function signInWithGoogle() {
 export async function signOutUser() {
   if (!isFirebaseConfigured) return
   await signOut(auth)
+}
+
+/**
+ * 현재 관리자의 Gmail 계정에서 팀 초대 메일을 바로 보낸다.
+ *
+ * 별도 유료 메일 서버나 공개 API 키를 두지 않는다. 최초 발송 때만 Google 이
+ * gmail.send 권한을 확인하고, 이후 메일은 이 앱이 아니라 로그인한 관리자의
+ * 주소에서 전송된다.
+ */
+export async function sendInviteEmail(to, teamName, inviteUrl = 'https://sms.sanghak.kr/') {
+  assertConfigured()
+  if (!auth.currentUser) throw new Error('다시 로그인한 뒤 초대해주세요.')
+
+  const provider = new GoogleAuthProvider()
+  provider.addScope('https://www.googleapis.com/auth/gmail.send')
+  provider.setCustomParameters({
+    login_hint: auth.currentUser.email || '',
+    include_granted_scopes: 'true',
+  })
+
+  const result = await reauthenticateWithPopup(auth.currentUser, provider)
+  const credential = GoogleAuthProvider.credentialFromResult(result)
+  const token = credential?.accessToken
+  if (!token) throw new Error('메일 발송 권한을 확인하지 못했습니다.')
+
+  const subject = '[영업 관리] 팀 초대'
+  const text = `${teamName} 팀으로 초대되었습니다.\n\nGoogle 계정으로 로그인해주세요.\n${inviteUrl}`
+  const message = [
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${utf8Base64(subject)}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    utf8Base64(text),
+  ].join('\r\n')
+
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw: utf8Base64Url(message) }),
+  })
+
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null)
+    const reason = detail?.error?.message || 'Gmail에서 메일을 보내지 못했습니다.'
+    throw new Error(reason)
+  }
+}
+
+function utf8Base64(value) {
+  const bytes = new TextEncoder().encode(String(value))
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+function utf8Base64Url(value) {
+  return utf8Base64(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+/** 로그인한 계정 앞으로 저장된 사전 팀 초대. */
+export async function getInvite(email) {
+  if (!isFirebaseConfigured) return null
+  const key = normalizeEmail(email)
+  if (!key) return null
+  const snap = await getDoc(doc(db, collectionName('invites'), key))
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
 /* ---------------------------- 문서에 담당자 정보 붙이기 --------------------------- */
@@ -245,6 +317,40 @@ export async function setAdmins(emails) {
   await setDoc(doc(db, collectionName('settings'), 'admins'), { emails: clean }, { merge: true })
 }
 
+/** 관리자용 이메일 초대 목록. */
+export function subscribeInvites(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData([])
+    return () => {}
+  }
+  return onSnapshot(
+    collection(db, collectionName('invites')),
+    (snap) => onData(snap.docs.map((entry) => ({ id: entry.id, ...entry.data() }))),
+    (err) => onError && onError(err),
+  )
+}
+
+export async function setInvite(user, email, teamId) {
+  assertConfigured()
+  const cleanEmail = normalizeEmail(email)
+  const cleanTeamId = String(teamId || '').trim()
+  if (!cleanEmail || !cleanTeamId) throw new Error('이메일과 팀을 모두 선택해주세요.')
+  await setDoc(doc(db, collectionName('invites'), cleanEmail), {
+    email: cleanEmail,
+    teamId: cleanTeamId,
+    invitedBy: user.uid,
+    invitedByEmail: user.email,
+    updatedAt: serverTimestamp(),
+  }, { merge: true })
+}
+
+export async function removeInvite(email) {
+  assertConfigured()
+  const cleanEmail = normalizeEmail(email)
+  if (!cleanEmail) return
+  await deleteDoc(doc(db, collectionName('invites'), cleanEmail))
+}
+
 /** 판매 대상 서비스 목록(settings/services). 문서가 없으면 빈 배열. */
 export function subscribeServices(onData, onError) {
   if (!isFirebaseConfigured) {
@@ -331,15 +437,21 @@ export async function registerMember(user) {
   }
   try {
     const snap = await getDoc(ref)
+    const invite = await getInvite(user.email)
+    const invitedTeamId = String(invite?.teamId || UNASSIGNED)
     if (snap.exists()) {
-      await updateDoc(ref, identity)
+      const currentTeamId = String(snap.data().teamId || UNASSIGNED)
+      await updateDoc(ref, {
+        ...identity,
+        ...(!currentTeamId && invitedTeamId ? { teamId: invitedTeamId } : {}),
+      })
     } else {
       // 설정에 저장된 기본 팀만 자동 배정한다. 일반 사용자가 임의의 팀 id 를 넣는 것은
       // firestore.rules 가 막고, bootstrap 관리자는 옛 설정의 팀 이름에서도 복구한다.
       const teamRef = doc(db, collectionName('settings'), 'teams')
       const teamSnap = await getDoc(teamRef)
       const teamData = teamSnap.exists() ? teamSnap.data() : {}
-      const initialTeamId = teamData.defaultTeamId
+      const initialTeamId = invitedTeamId || teamData.defaultTeamId
         || (user.isAdmin ? defaultTeamId(teamData.items || []) : UNASSIGNED)
       await setDoc(ref, {
         ...identity,

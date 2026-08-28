@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx'
 import { compactWon, formatDate, yearKey, yearLabel } from '../lib/format.js'
 import { monthlySeries, targetProgress, yearlyWon } from '../lib/stats.js'
 import { ALLOWED_DOMAINS, BOOTSTRAP_ADMINS, initial } from '../lib/accounts.js'
-import { accessLabel, teamName as nameOfTeam } from '../lib/teams.js'
+import { teamName as nameOfTeam } from '../lib/teams.js'
 import { actionLabel, actionsIn, describe, isHighRisk, matches } from '../lib/audit.js'
 
 export default function Settings() {
@@ -17,22 +17,6 @@ export default function Settings() {
 
   return (
     <main className="page">
-      <section className="panel">
-        <h3>내 계정</h3>
-        <div className="account-box">
-          {user.photoURL
-            ? <img className="avatar big" src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-            : <span className="avatar big">{user.name.charAt(0)}</span>}
-          <div>
-            <b>{user.name}</b>
-            <small>
-              {accessLabel(user.isAdmin, user.role, user.teamId)}
-              {user.teamId ? ` · ${nameOfTeam(teams, user.teamId)}` : ''}
-            </small>
-          </div>
-        </div>
-      </section>
-
       <section className="panel">
         <h3>{yearLabel(year)} 목표 현황</h3>
         {user.isAdmin && <p className="hint">목표 설정은 <b>팀 관리 → 연 매출목표</b>에서 합니다.</p>}

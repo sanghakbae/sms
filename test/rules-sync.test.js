@@ -34,6 +34,17 @@ test('기본 관리자 목록이 accounts.js 와 firestore.rules 에서 같다',
   )
 })
 
+test('QA 계정은 기본 관리자 권한을 갖지 않는다', () => {
+  assert.equal(BOOTSTRAP_ADMINS.includes('qa@muhayu.com'), false)
+})
+
+test('이메일 초대는 관리자만 쓰고 본인 이메일만 읽는다', () => {
+  assert.match(CODE, /match\s+\/invites\/\{inviteEmail\}/)
+  assert.match(CODE, /allow get: if isAdmin\(\) \|\| \(isMember\(\) && inviteEmail == email\(\)\)/)
+  assert.match(CODE, /allow create, update, delete: if isAdmin\(\)/)
+  assert.match(CODE, /request\.resource\.data\.teamId == invitedTeamId\(\)/)
+})
+
 test('허용 도메인 정책이 두 곳에서 같다', () => {
   const member = CODE.match(/function\s+isMember\s*\(\)\s*\{([\s\S]*?)\n\s{4}\}/)
   assert.ok(member, 'firestore.rules 에 isMember() 가 없습니다')

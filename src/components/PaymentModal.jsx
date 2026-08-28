@@ -120,9 +120,11 @@ export default function PaymentModal({ deal, onClose }) {
                 placeholder="0"
                 inputMode="numeric"
               />
-              <small className={`amount-preview${typed ? '' : ' zero'}`}>
-                {String(amount).trim() === '' ? '숫자만 입력하세요' : wonWithCompact(typed)}
-              </small>
+              {String(amount).trim() !== '' && (
+                <small className={`amount-preview${typed ? '' : ' zero'}`}>
+                  {wonWithCompact(typed)}
+                </small>
+              )}
             </label>
           </div>
           <label className="field"><span>메모</span>
