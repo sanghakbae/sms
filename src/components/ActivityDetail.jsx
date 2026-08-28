@@ -209,6 +209,7 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
     <Modal
       title={activity ? '활동 수정' : '활동 기록'}
       onClose={onClose}
+      className="activity-form-modal"
       footer={
         <div className="foot-row">
           <div className="spacer" />
@@ -242,7 +243,7 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
             <input type="date" value={form.date} onChange={set('date')} />
           </label>
         </div>
-        <div className="field"><span>내용</span>
+        <div className="field activity-note-field"><span>내용</span>
           <MarkdownEditor
             value={form.note}
             onChange={(v) => setForm((f) => ({ ...f, note: v }))}
