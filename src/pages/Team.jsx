@@ -421,7 +421,7 @@ function TeamRoster({
                   </small>
                   <div className="spacer" />
                   {!g.missing && (
-                    <>
+                    <div className="tc-actions">
                       <button
                         type="button"
                         className="ghost sm"
@@ -432,7 +432,7 @@ function TeamRoster({
                         className="danger ghost sm"
                         onClick={() => dropTeam(g.team, g.members.length)}
                       >삭제</button>
-                    </>
+                    </div>
                   )}
                 </>
               )}
@@ -828,6 +828,14 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
   // 입력 중인 값. 저장 전까지는 화면에서만 들고 있는다.
   const [draft, setDraft] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [teamFilter, setTeamFilter] = useState('all')
+  const filterGroups = groups.filter((g) => !g.missing)
+  const activeFilter = teamFilter === 'all' || filterGroups.some((g) => g.team.id === teamFilter)
+    ? teamFilter
+    : 'all'
+  const visibleGroups = activeFilter === 'all'
+    ? filterGroups
+    : filterGroups.filter((g) => g.team.id === activeFilter)
 
   // 팀에 속한 사람 전체(팀 구분 없이 한 판에 저장한다 — 저장 단위가 연도별 한 문서라서).
   const everyone = useMemo(
@@ -881,16 +889,44 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
     } finally { setBusy(false) }
   }
 
-  if (everyone.length === 0) return null
+  if (filterGroups.length === 0) return null
 
   return (
     <section className="panel">
       <h3>영업자별 목표 할당 · {yearLabel(year)}</h3>
 
+      <div className="allocation-scope" aria-label="영업자별 목표 팀 필터">
+        <div className="seg">
+          <button
+            type="button"
+            className={activeFilter === 'all' ? 'on' : ''}
+            onClick={() => setTeamFilter('all')}
+          >전체</button>
+          {filterGroups.map((g) => (
+            <button
+              type="button"
+              className={activeFilter === g.team.id ? 'on' : ''}
+              onClick={() => setTeamFilter(g.team.id)}
+              key={g.team.id}
+            >{g.team.name}</button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={save}>
-        {groups.map((g) => {
+        {activeFilter === 'all' && filterGroups.every((g) => g.members.length === 0) && (
+          <p className="empty sm">아직 어느 팀에도 팀원이 없습니다.</p>
+        )}
+        {visibleGroups.map((g) => {
           const list = g.members.filter((m) => m.email)
-          if (list.length === 0) return null
+          if (list.length === 0) {
+            return activeFilter === 'all' ? null : (
+              <div className="alloc-team" key={g.team.id}>
+                <div className="tg-head"><b>{g.team.name}</b><small>팀 목표 미배분</small></div>
+                <p className="empty sm">배정된 팀원이 없습니다.</p>
+              </div>
+            )
+          }
           const teamTarget = Number(teamTargetOf[g.team.id]) || 0
           const summary = allocationSummary(list, parsed, teamTarget)
           return (

@@ -1525,11 +1525,18 @@ button.primary.sm { color: #fff; }
   margin-bottom: 10px;
   background: var(--surface);
 }
-.team-card.empty-team { padding-block: 3px; }
+.team-card.empty-team { position: relative; min-height: 58px; padding-block: 3px; padding-right: 178px; }
 .team-card.empty-team .tc-head { margin-bottom: 0; }
 .team-card.empty-team .empty.sm { margin: 0; padding-block: 2px; }
 .team-card.missing { border-color: #fecaca; background: #fef7f7; }
 .tc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tc-actions { display: flex; align-items: center; gap: 6px; }
+.team-card.empty-team .tc-actions {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
 .tc-head b { font-size: 15px; }
 .tc-head small { color: var(--muted); font-size: 12px; }
 .tc-rename { display: flex; gap: 6px; width: 100%; }
@@ -1565,8 +1572,16 @@ button.primary.sm { color: #fff; }
 .migrate-row b.warn { color: var(--danger); }
 
 /* 목표 할당을 팀별로 나눠 담는 상자 */
+.allocation-scope { overflow-x: auto; margin-bottom: 14px; }
+.allocation-scope .seg { flex: none; }
+.allocation-scope button { white-space: nowrap; }
 .alloc-team + .alloc-team { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
 .alloc-team .tg-head { margin-bottom: 6px; }
+
+@media (max-width: 560px) {
+  .team-card.empty-team { padding-right: 10px; }
+  .team-card.empty-team .tc-actions { position: static; transform: none; margin-left: auto; }
+}
 
 /* ============================== 활동 상세·댓글 ============================== */
 
