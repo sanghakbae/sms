@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import {
-  compactWon, daysLeftInYear, monthKey, monthLabel, wonWithCompact, yearKey, yearLabel,
+  compactWon, daysLeftInYear, formatAmountInput, monthKey, monthLabel, wonWithCompact, yearKey, yearLabel,
 } from '../lib/format.js'
 import {
   allocationSummary, monthlySeries, targetProgress, teamSummary, yearlyWon, yearsWithData,
@@ -28,6 +28,36 @@ import {
   teamName as nameOfTeam,
   unassignedRows,
 } from '../lib/teams.js'
+
+const MEMBER_COLUMNS = ['이번달 수주', '진행중', '지연', '실패', '연 목표', '거래처·활동']
+const count = (value) => (Number(value) || 0).toLocaleString('ko-KR')
+
+function MemberTableHead() {
+  return (
+    <div className="team-table-head" aria-hidden="true">
+      <span className="team-head-member">팀원</span>
+      <div className="team-metric-head">
+        {MEMBER_COLUMNS.map((label) => <span key={label}>{label}</span>)}
+      </div>
+    </div>
+  )
+}
+
+function MemberMetrics({ member: m, allocOf }) {
+  const target = allocOf(m.email)
+  return (
+    <div className="team-nums member-metrics">
+      <span data-label="이번달 수주"><b>{compactWon(m.wonAmount)}<small>({count(m.wonCount)}건)</small></b></span>
+      <span data-label="진행중"><b>{compactWon(m.openAmount)}<small>({count(m.openCount)}건)</small></b></span>
+      <span data-label="지연"><b className={m.overdueCount ? 'warn' : ''}>{count(m.overdueCount)}건</b></span>
+      <span data-label="실패"><b>{count(m.lostCount)}건</b></span>
+      <span data-label="연 목표">
+        <b>{target ? compactWon(target) : '—'}{target ? <small>({targetProgress(m.yearWonAmount, target)}%)</small> : null}</b>
+      </span>
+      <span data-label="거래처·활동"><b>{count(m.customerCount)}건·{count(m.activityCount)}건</b></span>
+    </div>
+  )
+}
 
 /** 관리자 전용 화면 — 팀 편성, 목표 배분, 팀원 현황, 관리자 명단, 내보내기. */
 export default function Team() {
@@ -123,9 +153,10 @@ export default function Team() {
               <small>{g.members.length}명</small>
             </div>
             {g.members.length === 0 && <p className="empty sm">팀원이 없습니다.</p>}
+            {g.members.length > 0 && <MemberTableHead />}
             <div className="team-list">
               {g.members.map((m) => (
-                <div className="team-row" key={m.key}>
+                <div className="team-row member-row" key={m.key}>
                   <span className="avatar">{initial(m.name)}</span>
                   {/* 이메일은 화면에 띄우지 않는다 — 같은 이름이 겹칠 때만 tooltip 으로 확인한다. */}
                   <div className="team-who" title={m.email || ''}>
@@ -136,16 +167,7 @@ export default function Team() {
                       {!m.registered && <span className="tag">옛 데이터</span>}
                     </b>
                   </div>
-                  <div className="team-nums">
-                    <span><i>이번달 수주</i><b>{compactWon(m.wonAmount)}</b><small>{m.wonCount}건</small></span>
-                    <span><i>진행중</i><b>{compactWon(m.openAmount)}</b><small>{m.openCount}건</small></span>
-                    <span><i>지연</i><b className={m.overdueCount ? 'warn' : ''}>{m.overdueCount}건</b><small>마감 초과</small></span>
-                    <span><i>실패</i><b>{m.lostCount}건</b><small>회고 대상</small></span>
-                    <span><i>연 목표</i><b>{allocOf(m.email) ? compactWon(allocOf(m.email)) : '—'}</b>
-                      <small>{allocOf(m.email) ? `달성 ${targetProgress(m.yearWonAmount, allocOf(m.email))}%` : '미할당'}</small>
-                    </span>
-                    <span><i>거래처·활동</i><b>{m.customerCount}·{m.activityCount}</b><small>등록 건수</small></span>
-                  </div>
+                  <MemberMetrics member={m} allocOf={allocOf} />
                 </div>
               ))}
             </div>
@@ -212,9 +234,10 @@ function LeaderView({ group, month, teamTargets, allocOf, admins }) {
       <section className="panel">
         <h3>팀원 현황 · {monthLabel(month)}</h3>
         {group.members.length === 0 && <p className="empty">팀원이 없습니다.</p>}
+        {group.members.length > 0 && <MemberTableHead />}
         <div className="team-list">
           {group.members.map((m) => (
-            <div className="team-row" key={m.key}>
+            <div className="team-row member-row" key={m.key}>
               <span className="avatar">{initial(m.name)}</span>
               <div className="team-who" title={m.email || ''}>
                 <b>
@@ -223,16 +246,7 @@ function LeaderView({ group, month, teamTargets, allocOf, admins }) {
                   {m.role === ROLE_LEADER && <span className="tag leader">팀장</span>}
                 </b>
               </div>
-              <div className="team-nums">
-                <span><i>이번달 수주</i><b>{compactWon(m.wonAmount)}</b><small>{m.wonCount}건</small></span>
-                <span><i>진행중</i><b>{compactWon(m.openAmount)}</b><small>{m.openCount}건</small></span>
-                <span><i>지연</i><b className={m.overdueCount ? 'warn' : ''}>{m.overdueCount}건</b><small>마감 초과</small></span>
-                <span><i>실패</i><b>{m.lostCount}건</b><small>회고 대상</small></span>
-                <span><i>연 목표</i><b>{allocOf(m.email) ? compactWon(allocOf(m.email)) : '—'}</b>
-                  <small>{allocOf(m.email) ? `달성 ${targetProgress(m.yearWonAmount, allocOf(m.email))}%` : '미할당'}</small>
-                </span>
-                <span><i>거래처·활동</i><b>{m.customerCount}·{m.activityCount}</b><small>등록 건수</small></span>
-              </div>
+              <MemberMetrics member={m} allocOf={allocOf} />
             </div>
           ))}
         </div>
@@ -380,7 +394,7 @@ function TeamRoster({
         <h4>팀 {teams.length > 0 && <span className="count-pill">{teams.length}</span>}</h4>
         {groups.length === 0 && <p className="empty sm">아직 팀이 없습니다.</p>}
         {groups.map((g) => (
-          <div className={`team-card${g.missing ? ' missing' : ''}`} key={g.team.id}>
+          <div className={`team-card${g.missing ? ' missing' : ''}${g.members.length === 0 ? ' empty-team' : ''}`} key={g.team.id}>
             <div className="tc-head">
               {renaming?.id === g.team.id ? (
                 <form onSubmit={rename} className="tc-rename">
@@ -494,9 +508,9 @@ const MIGRATE_TARGETS = [
 ]
 
 /**
- * 팀별 격리를 켜기 전에 만들어진 문서에는 teamId 가 없다.
- * 그런 문서는 팀원의 쿼리에 걸리지 않아 사라진 것처럼 보인다(관리자에게는 계속 보인다).
- * 여기서 한 번 채워줘야 팀원 화면에 나타난다.
+ * 팀별 범위를 켜기 전에 만들어진 문서에는 teamId 가 없다.
+ * 거래처·영업현황 목록에서는 공유 데이터로 보이지만 팀 대시보드·거래 집계와
+ * 활동 목록에는 들어오지 않는다. 여기서 한 번 채워 팀 실적에 연결한다.
  */
 function MigratePanel({ teams, assignMissingTeam, countMissingTeam, notify }) {
   const [counts, setCounts] = useState(null)
@@ -540,8 +554,8 @@ function MigratePanel({ teams, assignMissingTeam, countMissingTeam, notify }) {
     <section className="panel">
       <h3>기존 데이터 팀 배정</h3>
       <p className="hint">
-        팀별 격리를 켜기 전에 만들어진 데이터에는 소속 팀이 없습니다. 관리자에게는 계속
-        보이지만 <b>팀원 화면에서는 보이지 않습니다.</b> 한 번 배정해주세요.
+        팀별 범위를 켜기 전에 만들어진 데이터에는 소속 팀이 없습니다. 공유 목록에는
+        보이지만 <b>팀 대시보드·활동·거래에는 집계되지 않습니다.</b> 한 번 배정해주세요.
       </p>
 
       {counts === null ? (
@@ -599,7 +613,7 @@ function TeamAllocation({ teams, groups, targets, teamTargets, setTeamTargets, n
   const current = useMemo(() => {
     if (draft) return draft
     const out = {}
-    for (const t of teams) out[t.id] = saved[t.id] ? String(saved[t.id]) : ''
+    for (const t of teams) out[t.id] = saved[t.id] ? formatAmountInput(saved[t.id]) : ''
     return out
   }, [draft, teams, saved])
 
@@ -623,7 +637,7 @@ function TeamAllocation({ teams, groups, targets, teamTargets, setTeamTargets, n
     const next = {}
     teams.forEach((t, i) => {
       // 나머지는 첫 팀이 떠안는다 — 합계가 목표와 정확히 맞아야 하므로.
-      next[t.id] = String(i === 0 ? companyTarget - each * (teams.length - 1) : each)
+      next[t.id] = formatAmountInput(i === 0 ? companyTarget - each * (teams.length - 1) : each)
     })
     setDraft(next)
   }
@@ -650,7 +664,7 @@ function TeamAllocation({ teams, groups, targets, teamTargets, setTeamTargets, n
       <form onSubmit={save}>
         <div className="alloc-list">
           {rows.filter((r) => !r.missing).map((r) => (
-            <div className="alloc-row" key={r.team.id}>
+            <div className="alloc-row team-alloc-row" key={r.team.id}>
               <div className="alloc-who">
                 <b>{r.team.name}</b>
                 <small>{r.totals.memberCount}명</small>
@@ -658,7 +672,7 @@ function TeamAllocation({ teams, groups, targets, teamTargets, setTeamTargets, n
               <div className="alloc-input">
                 <input
                   value={current[r.team.id] ?? ''}
-                  onChange={(e) => setDraft({ ...current, [r.team.id]: e.target.value })}
+                  onChange={(e) => setDraft({ ...current, [r.team.id]: formatAmountInput(e.target.value) })}
                   placeholder="0"
                   inputMode="numeric"
                   aria-label={`${r.team.name} 목표 금액`}
@@ -747,8 +761,8 @@ function TeamTarget({ deals, targets, setYearlyTarget, notify }) {
           <label className="field"><span>연 목표 수주액(원)</span>
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={target ? String(target) : '3000000000'}
+              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+              placeholder={target ? formatAmountInput(target) : '3,000,000,000'}
               inputMode="numeric"
             />
             <small className={`amount-preview${typed ? '' : ' zero'}`}>
@@ -824,7 +838,7 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
   const current = useMemo(() => {
     if (draft) return draft
     const out = {}
-    for (const m of everyone) out[m.email] = saved[m.email] ? String(saved[m.email]) : ''
+    for (const m of everyone) out[m.email] = saved[m.email] ? formatAmountInput(saved[m.email]) : ''
     return out
   }, [draft, everyone, saved])
 
@@ -836,7 +850,10 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
     return out
   }, [current])
 
-  const set = (email) => (e) => setDraft({ ...current, [email]: e.target.value })
+  const set = (email) => (e) => setDraft({
+    ...current,
+    [email]: formatAmountInput(e.target.value),
+  })
 
   // 팀 목표를 그 팀 인원수로 똑같이 나눠 채운다. 손으로 계산하지 않게.
   const splitTeam = (group) => {
@@ -847,7 +864,7 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
     const next = { ...current }
     list.forEach((m, i) => {
       // 나머지는 첫 사람이 떠안는다 — 합계가 팀 목표와 정확히 맞아야 하므로.
-      next[m.email] = String(i === 0 ? target - each * (list.length - 1) : each)
+      next[m.email] = formatAmountInput(i === 0 ? target - each * (list.length - 1) : each)
     })
     setDraft(next)
   }

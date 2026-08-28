@@ -26,24 +26,32 @@ export default function Dashboard() {
   // 대시보드에서 바로 열어보는 상세 — 목록을 눌러 파이프라인/활동으로 이동하지 않아도 되게.
   const [openDeal, setOpenDeal] = useState(null)
   const [openActivity, setOpenActivity] = useState(null)
-  const { deals, customers, activities, targets, ownerTargets, user } = useApp()
+  const { deals, customers, activities, teamTargets, ownerTargets, user } = useApp()
   const month = monthKey()
   const year = yearKey()
 
-  const won = useMemo(() => monthlyWon(deals, month), [deals, month])
-  const yearWon = useMemo(() => yearlyWon(deals, year), [deals, year])
-  const pipe = useMemo(() => pipelineSummary(deals), [deals])
-  const funnel = useMemo(() => stageFunnel(deals), [deals])
-  const rate = useMemo(() => winRate(deals), [deals])
-  const board = useMemo(() => teamSummary(deals, customers, activities, month), [deals, customers, activities, month])
+  // 관리자는 전사 데이터를 구독하지만 대시보드는 누구나 자기 팀만 본다.
+  const teamDeals = useMemo(() => deals.filter((d) => d.teamId === user.teamId), [deals, user.teamId])
+  const teamCustomers = useMemo(() => customers.filter((c) => c.teamId === user.teamId), [customers, user.teamId])
+  const teamActivities = useMemo(() => activities.filter((a) => a.teamId === user.teamId), [activities, user.teamId])
+
+  const won = useMemo(() => monthlyWon(teamDeals, month), [teamDeals, month])
+  const yearWon = useMemo(() => yearlyWon(teamDeals, year), [teamDeals, year])
+  const pipe = useMemo(() => pipelineSummary(teamDeals), [teamDeals])
+  const funnel = useMemo(() => stageFunnel(teamDeals), [teamDeals])
+  const rate = useMemo(() => winRate(teamDeals), [teamDeals])
+  const board = useMemo(
+    () => teamSummary(teamDeals, teamCustomers, teamActivities, month),
+    [teamDeals, teamCustomers, teamActivities, month],
+  )
   const yearAlloc = useMemo(() => (ownerTargets && ownerTargets[year]) || {}, [ownerTargets, year])
-  const mom = useMemo(() => monthOverMonth(deals, month), [deals, month])
-  const overdue = useMemo(() => overdueDeals(deals), [deals])
-  const soon = useMemo(() => closingSoon(deals, 30), [deals])
-  const recent = useMemo(() => (activities || []).slice(0, 5), [activities])
+  const mom = useMemo(() => monthOverMonth(teamDeals, month), [teamDeals, month])
+  const overdue = useMemo(() => overdueDeals(teamDeals), [teamDeals])
+  const soon = useMemo(() => closingSoon(teamDeals, 30), [teamDeals])
+  const recent = useMemo(() => teamActivities.slice(0, 5), [teamActivities])
 
   // 목표는 연 단위로 잡는다. 달성률도 올해 누적 기준.
-  const target = Number(targets[year]) || 0
+  const target = Number((teamTargets?.[year] || {})[user.teamId]) || 0
   const progress = targetProgress(yearWon.amount, target)
   const remain = Math.max(0, target - yearWon.amount)
   const daysLeft = daysLeftInYear()
@@ -95,15 +103,15 @@ export default function Dashboard() {
 
       <div className="stat-grid">
         <StatCard
-          label="영업기회 파이프라인"
+          label="영업현황"
           value={compactWon(pipe.total)}
-          sub={`검증 통과 ${pipe.count}건 · 리드 ${pipe.leadCount}건 별도`}
+          sub={`진행 ${pipe.count}건`}
           accent="#6366f1"
         />
         <StatCard
           label="가중 예상매출"
           value={compactWon(pipe.weighted)}
-          sub="단계별 확률 반영 · 리드 제외"
+          sub="단계별 성공확률 반영"
           accent="#0ea5e9"
         />
         <StatCard label="수주율" value={rate == null ? '—' : `${rate}%`} sub={rate == null ? '종료된 딜 없음' : `실패 ${totalLost}건 대비`} accent="#f59e0b" />
@@ -118,7 +126,7 @@ export default function Dashboard() {
         ) : (
           <div className="funnel2">
             {openStages.map((r) => (
-              <div className={`fn-row${r.stage.preQualified ? ' pre' : ''}`} key={r.stage.id}>
+              <div className="fn-row" key={r.stage.id}>
                 <span className="fn-name" style={{ color: r.stage.color }}>{r.stage.label}</span>
                 <div className="fn-track">
                   <span className="fn-fill" style={{ width: `${(r.reached / maxReached) * 100}%`, background: r.stage.color }} />
@@ -132,9 +140,6 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-        <small className="hint">
-          리드는 아직 검증 전 단서라 예상매출에 넣지 않습니다. 검증을 통과하면 영업기회로 셉니다.
-        </small>
       </section>
 
       {/*
@@ -226,7 +231,7 @@ export default function Dashboard() {
       </div>
 
       <section className="panel mini">
-        <div className="mini-row"><span>등록 거래처</span><b>{customers.length}곳</b></div>
+        <div className="mini-row"><span>등록 거래처</span><b>{teamCustomers.length}곳</b></div>
         <div className="mini-row">
           <span>이번 달 최고 수주</span>
           <b>{won.deals.length ? topDeal(won.deals) : '—'}</b>

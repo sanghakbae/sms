@@ -49,6 +49,7 @@ export default function ActivityDetail({ activity, onClose }) {
     <Modal
       title="활동 기록"
       onClose={onClose}
+      className="activity-detail-modal"
       footer={
         <div className="foot-row">
           {canEdit && (
@@ -133,18 +134,7 @@ function CommentThread({ activityId, user, canComment, notify }) {
 
   return (
     <section className="cmt">
-      <h4>
-        피드백
-        {comments.length > 0 && <span className="count-pill">{comments.length}</span>}
-      </h4>
-
       {error && <p className="hint warn-text">{error}</p>}
-
-      {comments.length === 0 && !error && (
-        <p className="empty sm">
-          {canComment ? '아직 피드백이 없습니다.' : '아직 팀장 피드백이 없습니다.'}
-        </p>
-      )}
 
       <div className="cmt-list">
         {comments.map((c) => (
@@ -178,7 +168,7 @@ function CommentThread({ activityId, user, canComment, notify }) {
           <MarkdownEditor
             value={text}
             onChange={setText}
-            rows={2}
+            rows={1}
             placeholder="잘한 점, 다음에 할 것…"
             hint="팀원에게 남기는 피드백입니다."
           />

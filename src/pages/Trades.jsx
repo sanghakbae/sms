@@ -15,12 +15,16 @@ import {
 import { closedMonth } from '../lib/stats.js'
 
 export default function Trades() {
-  const { deals } = useApp()
+  const { deals, user } = useApp()
   const [filter, setFilter] = useState('')
   const [year, setYear] = useState('')
   const [open, setOpen] = useState(null)
 
-  const all = useMemo(() => trades(deals), [deals])
+  const teamDeals = useMemo(
+    () => deals.filter((d) => d.teamId === user.teamId),
+    [deals, user.teamId],
+  )
+  const all = useMemo(() => trades(teamDeals), [teamDeals])
 
   const years = useMemo(() => {
     const set = new Set()
@@ -40,7 +44,7 @@ export default function Trades() {
   const sum = useMemo(() => tradeSummary(rows), [rows])
 
   // 목록이 갱신되면 열려 있는 모달도 최신 문서로.
-  const current = open ? deals.find((d) => d.id === open.id) || null : null
+  const current = open ? teamDeals.find((d) => d.id === open.id) || null : null
 
   return (
     <main className="page">

@@ -5,14 +5,18 @@ import { ACTIVITY_TYPES, getActivityType } from '../lib/pipeline.js'
 import { formatDate, relativeDay } from '../lib/format.js'
 
 export default function Activities() {
-  const { activities, customers, canCreate, addActivity, notify } = useApp()
+  const { activities, customers, user, canCreate, addActivity, notify } = useApp()
   const [adding, setAdding] = useState(false)
   const [opened, setOpened] = useState(null) // 상세를 연 활동
   const [typeFilter, setTypeFilter] = useState('')
 
+  const teamActivities = useMemo(
+    () => activities.filter((a) => a.teamId === user.teamId),
+    [activities, user.teamId],
+  )
   const list = useMemo(
-    () => (typeFilter ? activities.filter((a) => a.type === typeFilter) : activities),
-    [activities, typeFilter],
+    () => (typeFilter ? teamActivities.filter((a) => a.type === typeFilter) : teamActivities),
+    [teamActivities, typeFilter],
   )
 
   // 날짜별 그룹.
@@ -28,7 +32,7 @@ export default function Activities() {
 
   // 목록이 갱신되면 열려 있는 상세도 최신 문서로 바꿔준다.
   // 안 그러면 수정한 내용이 모달에 반영되지 않는다.
-  const current = opened ? activities.find((a) => a.id === opened.id) || null : null
+  const current = opened ? teamActivities.find((a) => a.id === opened.id) || null : null
   useEffect(() => {
     if (opened && !current) setOpened(null) // 남이 지웠다
   }, [opened, current])

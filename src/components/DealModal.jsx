@@ -6,13 +6,13 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Modal from './Modal.jsx'
 import MarkdownEditor from './MarkdownEditor.jsx'
-import { STAGES, getStage, isOpen } from '../lib/pipeline.js'
-import { monthKey, todayISO, wonWithCompact } from '../lib/format.js'
+import { STAGES, getStage, isOpen, normalizeStageId } from '../lib/pipeline.js'
+import { formatAmountInput, monthKey, todayISO, wonWithCompact } from '../lib/format.js'
 import { teamSummary } from '../lib/stats.js'
 import { canEditDoc } from '../lib/teams.js'
 
 const EMPTY = {
-  title: '', customerId: '', serviceId: '', amount: '', stage: 'lead',
+  title: '', customerId: '', serviceId: '', amount: '', stage: 'contact',
   expectedClose: '', memo: '', lost: false, lostReason: '',
 }
 
@@ -33,6 +33,7 @@ export default function DealModal({ deal, onClose }) {
       .map((m) => ({ uid: m.uid, name: m.name, email: m.email })),
     [deals, customers, activities],
   )
+  const canEdit = !deal || canEditDoc(user, deal)
 
   return (
     <DealForm
@@ -41,7 +42,8 @@ export default function DealModal({ deal, onClose }) {
       services={services}
       members={members}
       isAdmin={user.isAdmin}
-      canDelete={Boolean(deal) && canEditDoc(user, deal)}
+      canEdit={canEdit}
+      canDelete={Boolean(deal) && canEdit}
       onClose={onClose}
       onSave={async (data) => {
         if (deal) { await updateDeal(deal.id, data); notify('영업기회를 수정했습니다.') }
@@ -58,12 +60,13 @@ export default function DealModal({ deal, onClose }) {
   )
 }
 
-function DealForm({ deal, customers, services, members, isAdmin, canDelete, onClose, onSave, onDelete }) {
+function DealForm({ deal, customers, services, members, isAdmin, canEdit, canDelete, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(deal
     ? {
         ...EMPTY,
         ...deal,
-        amount: String(deal.amount ?? ''),
+        stage: normalizeStageId(deal.stage),
+        amount: formatAmountInput(deal.amount),
         // 되살린 딜에는 예전 회고가 남아 있다. 지금 실패 상태가 아니면 빈 칸에서 시작해
         // 옛 사유가 새 실패의 회고로 잘못 저장되지 않게 한다.
         lostReason: deal.lost ? (deal.lostReason || '') : '',
@@ -71,7 +74,10 @@ function DealForm({ deal, customers, services, members, isAdmin, canDelete, onCl
     : EMPTY)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => setForm((f) => ({
+    ...f,
+    [k]: k === 'amount' ? formatAmountInput(e.target.value) : e.target.value,
+  }))
 
   const chooseService = (e) => {
     const id = e.target.value
@@ -105,7 +111,7 @@ function DealForm({ deal, customers, services, members, isAdmin, canDelete, onCl
         customerName: form.customerName || (customers.find((c) => c.id === form.customerId)?.name ?? ''),
         serviceId: form.serviceId || '',
         serviceName: form.serviceName || (services.find((x) => x.id === form.serviceId)?.name ?? ''),
-        amount: Number(form.amount) || 0,
+        amount: amountTyped,
         stage: form.stage,
         expectedClose: form.expectedClose || '',
         memo: (form.memo || '').trim(),
@@ -136,19 +142,22 @@ function DealForm({ deal, customers, services, members, isAdmin, canDelete, onCl
 
   return (
     <Modal
-      title={deal ? '영업기회 수정' : '영업기회 추가'}
+      title={deal ? (canEdit ? '영업기회 수정' : '영업기회 상세') : '영업기회 추가'}
       onClose={onClose}
       footer={
         <div className="foot-row">
           {canDelete && <button type="button" className="danger" onClick={onDelete}>삭제</button>}
           <div className="spacer" />
-          <button type="button" onClick={onClose}>취소</button>
-          <button type="submit" form="deal-form" className="primary" disabled={busy}>저장</button>
+          <button type="button" onClick={onClose}>{canEdit ? '취소' : '닫기'}</button>
+          {canEdit && (
+            <button type="submit" form="deal-form" className="primary" disabled={busy}>저장</button>
+          )}
         </div>
       }
     >
       <form id="deal-form" onSubmit={submit} className="form">
-        {error && <div className="login-error">{error}</div>}
+        <fieldset className="form-lock" disabled={!canEdit}>
+          {error && <div className="login-error">{error}</div>}
         <label className="field"><span>제목 *</span>
           <input value={form.title} onChange={set('title')} placeholder="표절검사 연간계약" autoFocus />
         </label>
@@ -171,7 +180,7 @@ function DealForm({ deal, customers, services, members, isAdmin, canDelete, onCl
             </select>
           </label>
           <label className="field"><span>예상 금액(원)</span>
-            <input value={form.amount} onChange={set('amount')} placeholder="5000000" inputMode="numeric" />
+            <input value={form.amount} onChange={set('amount')} placeholder="5,000,000" inputMode="numeric" />
             <small className={`amount-preview${amountTyped ? '' : ' zero'}`}>
               {String(form.amount).trim() === '' ? '숫자만 입력하세요' : wonWithCompact(amountTyped)}
             </small>
@@ -234,14 +243,15 @@ function DealForm({ deal, customers, services, members, isAdmin, canDelete, onCl
           </label>
         )}
 
-        <div className="field"><span>메모</span>
-          <MarkdownEditor
-            value={form.memo}
-            onChange={(v) => setForm((f) => ({ ...f, memo: v }))}
-            rows={4}
-            placeholder="진행 상황, 경쟁사, 결정권자…"
-          />
-        </div>
+          <div className="field"><span>메모</span>
+            <MarkdownEditor
+              value={form.memo}
+              onChange={(v) => setForm((f) => ({ ...f, memo: v }))}
+              rows={4}
+              placeholder="진행 상황, 경쟁사, 결정권자…"
+            />
+          </div>
+        </fieldset>
       </form>
     </Modal>
   )
@@ -270,7 +280,7 @@ function StageGuide({ stage, lost }) {
         <span className="sg-dot" style={{ background: stage.color }} />
         <b>{stage.label}</b>
         <span className="sg-prob">
-          {stage.closed ? '마감' : stage.preQualified ? '예상매출 제외' : `성공확률 ${stage.probability}%`}
+          {stage.closed ? '마감' : `성공확률 ${stage.probability}%`}
         </span>
         <button
           type="button"

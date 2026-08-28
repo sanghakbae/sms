@@ -63,3 +63,21 @@ test('로그인하지 않은 요청을 막는 기본 조건이 살아 있다', (
   assert.match(CODE, /email_verified\s*==\s*true/, '이메일 인증 확인이 사라졌습니다')
   assert.match(CODE, /allow read, write: if false/, '기본 거부(catch-all) 규칙이 사라졌습니다')
 })
+
+test('신규 사용자는 설정된 기본 팀으로만 자동 배정할 수 있다', () => {
+  assert.match(CODE, /function\s+defaultTeamId\s*\(/, '기본 팀 조회 규칙이 없습니다')
+  assert.match(
+    CODE,
+    /request\.resource\.data\.teamId\s*==\s*defaultTeamId\(\)/,
+    '신규 사용자의 자동 팀 배정이 설정된 기본 팀으로 제한되지 않았습니다',
+  )
+})
+
+test('거래처와 영업현황은 로그인 사용자에게 공유하고 활동은 팀으로 제한한다', () => {
+  assert.match(CODE, /match\s+\/customers\/\{id\}[\s\S]*?allow read:\s*if isMember\(\);/)
+  assert.match(CODE, /match\s+\/deals\/\{id\}[\s\S]*?allow read:\s*if isMember\(\);/)
+  assert.match(
+    CODE,
+    /match\s+\/activities\/\{id\}[\s\S]*?allow read:\s*if isMember\(\)\s*&&\s*\(isAdmin\(\)\s*\|\|\s*sameTeam\(\)\);/,
+  )
+})

@@ -1,40 +1,11 @@
-// 영업 파이프라인 단계 정의.
-// 순서대로 진행하며 won 이 마지막(종료) 단계다.
+// 영업 단계 정의. 순서대로 진행하며 won 이 마지막(종료) 단계다.
 // 실패는 단계가 아니라 딜에 붙는 lost 플래그다 — 아래 주석 참고.
 // probability 는 그 단계 딜의 기본 성공확률(가중 예상매출 계산에 쓴다).
-
-// preQualified 인 단계는 '아직 영업기회로 인정하기 전' 이다.
-// 예산·권한·니즈·시기가 확인되지 않았으므로 매출 전망에 넣지 않는다.
 // summary  한 줄 정의 — 이 단계가 무엇인가
 // entry    여기로 올릴 조건 — 무엇이 확인돼야 하나
 // exit     다음으로 넘어가는 신호
 // watch    이 단계에서 흔히 하는 실수
 export const STAGES = [
-  {
-    id: 'lead',
-    label: '리드',
-    short: '발굴',
-    color: '#94a3b8',
-    probability: 10,
-    closed: false,
-    preQualified: true,
-    summary: '아직 영업기회가 아닌 단서. 이름과 연락처는 있지만 살 사람인지 모른다.',
-    entry: '전시회 명함, 홈페이지 문의, 소개받은 연락처처럼 접점이 하나라도 생겼을 때.',
-    exit: '예산·결정권·니즈·시기(BANT)가 하나라도 확인되면 검증으로 올린다.',
-    watch: '리드는 예상매출에 넣지 않는다. 거래처로 등록하지도 않는다 — 검증도 안 된 회사가 거래처 목록에 쌓이면 등급 관리가 무의미해진다.',
-  },
-  {
-    id: 'qualify',
-    label: '검증',
-    short: '자격',
-    color: '#64748b',
-    probability: 20,
-    closed: false,
-    summary: '살 수 있는 고객인지 확인하는 단계. 여기서부터 영업기회로 센다.',
-    entry: '예산 규모, 결정 라인, 실제 필요, 도입 시기 — 넷 중 최소 둘을 확인했을 때.',
-    exit: '담당자와 실제 대화가 시작되면 상담으로.',
-    watch: '이 단계에서 거래처를 등록하고 딜에 연결한다. 검증을 통과했다는 것이 곧 거래처로 관리할 값어치가 생겼다는 뜻이다.',
-  },
   {
     id: 'contact',
     label: '상담',
@@ -96,8 +67,13 @@ export const OPEN_STAGES = STAGES.filter((s) => !s.closed)
 
 const BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s]))
 
+/** 예전 리드·검증 데이터는 없애지 않고 상담 단계로 합쳐서 보여준다. */
+export function normalizeStageId(id) {
+  return id === 'lead' || id === 'qualify' ? 'contact' : id
+}
+
 export function getStage(id) {
-  return BY_ID[id] || STAGES[0]
+  return BY_ID[normalizeStageId(id)] || STAGES[0]
 }
 
 export function stageProbability(id) {
@@ -129,17 +105,9 @@ export function isDealOpen(deal) {
   return !isDealLost(deal) && isOpen(deal && deal.stage)
 }
 
-/**
- * 검증을 통과해 '영업기회' 로 인정되는 딜인가.
- * 리드는 아직 단서일 뿐이라 파이프라인 금액과 전망치에서 빼야 한다.
- */
+/** 진행 중인 영업 건인가. */
 export function isQualified(deal) {
-  return isDealOpen(deal) && getStage(deal && deal.stage).preQualified !== true
-}
-
-/** 아직 검증 전(리드) 인 딜인가. */
-export function isPreQualified(deal) {
-  return isDealOpen(deal) && getStage(deal && deal.stage).preQualified === true
+  return isDealOpen(deal)
 }
 
 /** 딜의 성공확률 — 실패한 딜은 0%. */

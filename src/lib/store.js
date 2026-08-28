@@ -27,7 +27,7 @@ import {
 
 import { auth, collectionName, db, isFirebaseConfigured } from '../firebase.js'
 import { isAdminEmail, isAllowedEmail, normalizeEmail, shortName } from './accounts.js'
-import { ROLE_MEMBER, UNASSIGNED, normalizeTeams } from './teams.js'
+import { ROLE_MEMBER, UNASSIGNED, defaultTeamId, normalizeTeams } from './teams.js'
 
 export { isFirebaseConfigured }
 
@@ -334,10 +334,16 @@ export async function registerMember(user) {
     if (snap.exists()) {
       await updateDoc(ref, identity)
     } else {
-      // 처음 로그인 — 팀은 비워둔다. 관리자가 넣어줘야 비로소 팀원이 된다.
+      // 설정에 저장된 기본 팀만 자동 배정한다. 일반 사용자가 임의의 팀 id 를 넣는 것은
+      // firestore.rules 가 막고, bootstrap 관리자는 옛 설정의 팀 이름에서도 복구한다.
+      const teamRef = doc(db, collectionName('settings'), 'teams')
+      const teamSnap = await getDoc(teamRef)
+      const teamData = teamSnap.exists() ? teamSnap.data() : {}
+      const initialTeamId = teamData.defaultTeamId
+        || (user.isAdmin ? defaultTeamId(teamData.items || []) : UNASSIGNED)
       await setDoc(ref, {
         ...identity,
-        teamId: UNASSIGNED,
+        teamId: initialTeamId,
         role: ROLE_MEMBER,
         createdAt: serverTimestamp(),
       })
@@ -410,11 +416,23 @@ export function subscribeTeams(onData, onError) {
 
 export async function setTeams(items) {
   assertConfigured()
+  const clean = normalizeTeams(items)
   await setDoc(
     doc(db, collectionName('settings'), 'teams'),
-    { items: normalizeTeams(items) },
+    { items: clean, defaultTeamId: defaultTeamId(clean) },
     { merge: true },
   )
+}
+
+/** 옛 팀 설정에 기본 팀 id 가 없으면 관리자가 한 번 자동으로 보완한다. */
+export async function ensureDefaultTeam(items) {
+  assertConfigured()
+  const id = defaultTeamId(items)
+  if (!id) return
+  const ref = doc(db, collectionName('settings'), 'teams')
+  const snap = await getDoc(ref)
+  if (snap.exists() && snap.data().defaultTeamId === id) return
+  await setDoc(ref, { defaultTeamId: id }, { merge: true })
 }
 
 /** 팀별 연 목표. settings/teamTargets 에 { 'YYYY': { teamId: 금액 } } 로 둔다. */

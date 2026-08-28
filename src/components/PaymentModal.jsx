@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Modal from './Modal.jsx'
-import { compactWon, formatDate, todayISO, wonWithCompact } from '../lib/format.js'
+import { compactWon, formatAmountInput, formatDate, todayISO, wonWithCompact } from '../lib/format.js'
 import {
   makePaymentId, paymentsOf, paidTotal, settlementColor, settlementLabel,
   settlementOf, unpaidAmount,
@@ -49,7 +49,7 @@ export default function PaymentModal({ deal, onClose }) {
   }
 
   // 잔액을 그대로 채워준다 — 잔금 입력이 가장 흔하다.
-  const fillRemaining = () => setAmount(String(left))
+  const fillRemaining = () => setAmount(formatAmountInput(left))
 
   return (
     <Modal
@@ -116,7 +116,7 @@ export default function PaymentModal({ deal, onClose }) {
             <label className="field"><span>입금액(원)</span>
               <input
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                 placeholder="0"
                 inputMode="numeric"
               />

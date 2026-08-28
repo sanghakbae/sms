@@ -5,6 +5,7 @@ import MarkdownEditor from '../components/MarkdownEditor.jsx'
 import { GRADES, INDUSTRIES, INDUSTRY_GROUPS, getGrade, getStage } from '../lib/pipeline.js'
 import { customerHistory, settlementColor, settlementLabel } from '../lib/settlement.js'
 import { compactWon, formatDate } from '../lib/format.js'
+import { canEditDoc } from '../lib/teams.js'
 
 const EMPTY = { name: '', industry: '', grade: 'B', contactName: '', phone: '', email: '', memo: '' }
 
@@ -93,7 +94,8 @@ export default function Customers() {
         <CustomerModal
           customer={editing === 'new' ? null : editing}
           deals={deals}
-          canDelete={editing !== 'new' && (user.isAdmin || editing.owner === user.uid)}
+          canEdit={editing === 'new' || canEditDoc(user, editing)}
+          canDelete={editing !== 'new' && canEditDoc(user, editing)}
           onClose={() => setEditing(null)}
           onSave={async (data) => {
             if (editing === 'new') { await addCustomer(data); notify('거래처를 추가했습니다.') }
@@ -118,7 +120,7 @@ export default function Customers() {
   )
 }
 
-function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }) {
+function CustomerModal({ customer, deals, canEdit, canDelete, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(customer ? { ...EMPTY, ...customer } : EMPTY)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -142,7 +144,7 @@ function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }
 
   return (
     <Modal
-      title={customer ? '거래처 수정' : '거래처 추가'}
+      title={customer ? (canEdit ? '거래처 수정' : '거래처 상세') : '거래처 추가'}
       onClose={onClose}
       footer={
         <div className="foot-row">
@@ -150,15 +152,18 @@ function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }
             <button type="button" className="danger" onClick={onDelete}>삭제</button>
           )}
           <div className="spacer" />
-          <button type="button" onClick={onClose}>취소</button>
-          <button type="submit" form="cust-form" className="primary" disabled={busy}>저장</button>
+          <button type="button" onClick={onClose}>{canEdit ? '취소' : '닫기'}</button>
+          {canEdit && (
+            <button type="submit" form="cust-form" className="primary" disabled={busy}>저장</button>
+          )}
         </div>
       }
     >
       <form id="cust-form" onSubmit={submit} className="form">
-        <label className="field"><span>거래처명 *</span>
-          <input value={form.name} onChange={set('name')} placeholder="(주)무하유" autoFocus />
-        </label>
+        <fieldset className="form-lock" disabled={!canEdit}>
+          <label className="field"><span>거래처명 *</span>
+            <input value={form.name} onChange={set('name')} placeholder="(주)무하유" autoFocus />
+          </label>
         <div className="grid2">
           <label className="field"><span>업종</span>
             <select value={form.industry} onChange={set('industry')}>
@@ -196,14 +201,15 @@ function CustomerModal({ customer, deals, canDelete, onClose, onSave, onDelete }
         <label className="field"><span>이메일</span>
           <input value={form.email} onChange={set('email')} placeholder="buyer@company.com" inputMode="email" />
         </label>
-        <div className="field"><span>메모</span>
-          <MarkdownEditor
-            value={form.memo}
-            onChange={(v) => setForm((f) => ({ ...f, memo: v }))}
-            rows={4}
-            placeholder="특이사항, 니즈, 히스토리…"
-          />
-        </div>
+          <div className="field"><span>메모</span>
+            <MarkdownEditor
+              value={form.memo}
+              onChange={(v) => setForm((f) => ({ ...f, memo: v }))}
+              rows={4}
+              placeholder="특이사항, 니즈, 히스토리…"
+            />
+          </div>
+        </fieldset>
       </form>
 
       {customer && <CustomerHistory customer={customer} deals={deals} />}

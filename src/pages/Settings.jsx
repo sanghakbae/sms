@@ -7,7 +7,7 @@ import { accessLabel, teamName as nameOfTeam } from '../lib/teams.js'
 import { actionLabel, actionsIn, describe, isHighRisk, matches } from '../lib/audit.js'
 
 export default function Settings() {
-  const { user, deals, targets, services, teams, admins, members, auditLogs, setServices, notify, logout } = useApp()
+  const { user, deals, targets, services, teams, admins, members, auditLogs, setServices, notify } = useApp()
   const year = yearKey()
   const target = Number(targets[year]) || 0
   const won = useMemo(() => yearlyWon(deals, year), [deals, year])
@@ -30,7 +30,6 @@ export default function Settings() {
               {user.teamId ? ` · ${nameOfTeam(teams, user.teamId)}` : ''}
             </small>
           </div>
-          <button type="button" className="danger ghost" onClick={logout}>로그아웃</button>
         </div>
       </section>
 
@@ -59,16 +58,13 @@ export default function Settings() {
         </div>
       </section>
 
-      <ServiceCatalog
-        services={services}
-        canEdit={user.isAdmin}
-        setServices={setServices}
-        notify={notify}
-      />
-
-      <SecurityPanel user={user} teams={teams} admins={admins} members={members} />
-
-      {user.isAdmin && <AuditPanel logs={auditLogs} />}
+      {user.isAdmin && (
+        <>
+          <ServiceCatalog services={services} setServices={setServices} notify={notify} />
+          <SecurityPanel teams={teams} admins={admins} members={members} />
+          <AuditPanel logs={auditLogs} />
+        </>
+      )}
 
       <p className="foot-note">영업 관리시스템 · React + Firebase</p>
     </main>
@@ -78,7 +74,7 @@ export default function Settings() {
 /* ------------------------------- 대상 서비스 목록 ------------------------------- */
 
 /** 영업기회에서 고를 수 있는 판매 서비스. 목록 관리는 관리자만. */
-function ServiceCatalog({ services, canEdit, setServices, notify }) {
+function ServiceCatalog({ services, setServices, notify }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -109,33 +105,28 @@ function ServiceCatalog({ services, canEdit, setServices, notify }) {
   return (
     <section className="panel">
       <h3>대상 서비스</h3>
-      {!canEdit && <p className="hint">서비스 목록 관리는 팀장만 가능합니다.</p>}
 
       {services.length === 0
-        ? <p className="empty">등록된 서비스가 없습니다.{canEdit ? ' 아래에서 추가하세요.' : ''}</p>
+        ? <p className="empty">등록된 서비스가 없습니다. 아래에서 추가하세요.</p>
         : (
           <div className="svc-list">
             {services.map((svc) => (
               <div className="svc-row" key={svc.id}>
                 <span className="svc-name">{svc.name}</span>
-                {canEdit && (
-                  <button type="button" className="danger ghost sm" onClick={() => remove(svc)}>삭제</button>
-                )}
+                <button type="button" className="danger ghost sm" onClick={() => remove(svc)}>삭제</button>
               </div>
             ))}
           </div>
         )}
 
-      {canEdit && (
-        <form onSubmit={add} className="admin-add">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="추가할 서비스명 (예: 카피킬러 캠퍼스)"
-          />
-          <button type="submit" className="primary" disabled={busy}>추가</button>
-        </form>
-      )}
+      <form onSubmit={add} className="admin-add">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="추가할 서비스명 (예: 카피킬러 캠퍼스)"
+        />
+        <button type="submit" className="primary" disabled={busy}>추가</button>
+      </form>
       <small className="hint">여기 등록한 서비스를 영업기회에서 고를 수 있습니다.</small>
     </section>
   )
@@ -149,7 +140,7 @@ function ServiceCatalog({ services, canEdit, setServices, notify }) {
  * 접근 제어의 실제 근거는 firestore.rules 이고, 화면에서 바꿀 수 있게 만들면
  * 규칙과 어긋난 값이 생겨 무엇이 참인지 알 수 없게 된다.
  */
-function SecurityPanel({ user, teams, admins, members }) {
+function SecurityPanel({ teams, admins, members }) {
   const adminCount = new Set([
     ...BOOTSTRAP_ADMINS,
     ...(admins || []).map((e) => String(e).toLowerCase()),
@@ -173,9 +164,9 @@ function SecurityPanel({ user, teams, admins, members }) {
       ok: ALLOWED_DOMAINS.length > 0,
     },
     {
-      label: '팀별 데이터 격리',
-      value: '켜짐',
-      note: '거래처·영업기회·활동은 같은 팀만 봅니다. 관리자는 전사를 봅니다.',
+      label: '데이터 공개 범위',
+      value: '전사 공유 + 팀 격리',
+      note: '거래처·영업현황은 전사 공유, 대시보드·활동·거래는 자기 팀만 봅니다.',
       ok: true,
     },
     {
@@ -209,16 +200,14 @@ function SecurityPanel({ user, teams, admins, members }) {
         ))}
       </div>
 
-      {user.isAdmin && (
-        <div className="sec-note">
-          <b>보안 규칙은 배포해야 적용됩니다.</b>
-          <p>
-            <code>firestore.rules</code> 와 <code>src/lib/accounts.js</code> 는 같은 기준을
-            중복 구현합니다. 한쪽만 고치면 화면은 열리는데 데이터가 거부되거나 그 반대가 됩니다.
-          </p>
-          <pre><code>firebase deploy --only firestore:rules,firestore:indexes</code></pre>
-        </div>
-      )}
+      <div className="sec-note">
+        <b>보안 규칙은 배포해야 적용됩니다.</b>
+        <p>
+          <code>firestore.rules</code> 와 <code>src/lib/accounts.js</code> 는 같은 기준을
+          중복 구현합니다. 한쪽만 고치면 화면은 열리는데 데이터가 거부되거나 그 반대가 됩니다.
+        </p>
+        <pre><code>firebase deploy --only firestore:rules,firestore:indexes</code></pre>
+      </div>
     </section>
   )
 }

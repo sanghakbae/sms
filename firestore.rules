@@ -8,14 +8,14 @@ rules_version = '2';
 // 권한 3단 — 관리자 > 팀장 > 팀원.
 //   관리자  settings/admins + bootstrapAdmins(). 전사 전체를 읽고 쓴다.
 //   팀장    members/{uid}.role == 'leader'. 자기 팀 문서는 남의 것도 고친다.
-//   팀원    그 밖. 자기 팀 문서를 읽고, 자기가 만든 것만 고친다.
+//   팀원    그 밖. 공유 문서와 자기 팀 활동을 읽고, 자기가 만든 것만 고친다.
 //
 // 팀별 격리:
-//   거래처·영업기회·활동에는 teamId 가 붙는다. 팀 밖 문서는 관리자만 본다.
+//   거래처·영업현황은 전사에 공유하고, 활동은 자기 팀만 본다.
 //   목표·팀 편성·역할 지정은 관리자만 한다(settings/*).
 //
 // ⚠️ 규칙은 필터가 아니다.
-//   여기서 teamId 를 검사한다고 목록이 걸러지지는 않는다. 클라이언트가
+//   활동에서 teamId 를 검사한다고 목록이 걸러지지는 않는다. 클라이언트가
 //   where('teamId','==',내팀) 으로 좁혀 쿼리해야 하고, 안 그러면 남의 팀 문서
 //   하나 때문에 쿼리 전체가 거부된다. src/lib/store.js 의 subscribeCollection 참고.
 //
@@ -78,6 +78,14 @@ service cloud.firestore {
       return myTeamId() != '';
     }
 
+    // 관리자가 지정한 신규 사용자 기본 팀. 클라이언트가 임의의 팀으로 스스로
+    // 들어가지 못하도록 members 생성 규칙에서 이 값과 정확히 비교한다.
+    function defaultTeamId() {
+      return exists(/databases/$(database)/documents/settings/teams)
+        ? get(/databases/$(database)/documents/settings/teams).data.get('defaultTeamId', '')
+        : '';
+    }
+
     // 내 역할. 값이 없으면 팀원으로 본다(권한을 더 주지 않는 쪽으로 기운다).
     function myRole() {
       return exists(/databases/$(database)/documents/members/$(request.auth.uid))
@@ -132,12 +140,14 @@ service cloud.firestore {
       // 담당자 이름을 화면에 띄우려면 명단을 읽을 수 있어야 한다.
       allow read: if isMember();
 
-      // 처음 올릴 때는 팀 없이, 팀원 역할로만 만들 수 있다.
+      // 처음 올릴 때는 미배정 또는 관리자가 지정한 기본 팀, 팀원 역할로만 만들 수 있다.
       allow create: if isMember() && (
         isAdmin()
         || (request.auth.uid == uid
             && request.resource.data.email == email()
-            && request.resource.data.teamId == ''
+            && (request.resource.data.teamId == ''
+                || (defaultTeamId() != ''
+                    && request.resource.data.teamId == defaultTeamId()))
             && request.resource.data.get('role', 'member') == 'member')
       );
 
@@ -158,7 +168,7 @@ service cloud.firestore {
     /* ------------------------------- 팀 데이터 ------------------------------- */
 
     match /customers/{id} {
-      allow read: if isMember() && (isAdmin() || sameTeam());
+      allow read: if isMember();
       allow create: if isMember()
         && createsInMyTeam()
         && request.resource.data.owner == request.auth.uid
@@ -170,7 +180,7 @@ service cloud.firestore {
     }
 
     match /deals/{id} {
-      allow read: if isMember() && (isAdmin() || sameTeam());
+      allow read: if isMember();
       allow create: if isMember()
         && createsInMyTeam()
         && request.resource.data.owner == request.auth.uid

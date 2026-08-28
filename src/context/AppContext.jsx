@@ -5,6 +5,7 @@ import {
   addDeal,
   assignMissingTeam,
   countMissingTeam,
+  ensureDefaultTeam,
   isFirebaseConfigured,
   onAuthChange,
   registerMember,
@@ -70,7 +71,7 @@ export function AppProvider({ children }) {
   const [teamTargets, setTeamTargetMap] = useState({})
   const [ownerTargets, setOwnerTargetMap] = useState({})
 
-  // 팀 데이터 — 내 팀 것만 받는다(관리자는 전체).
+  // 업무 데이터 — 거래처·영업현황은 전사 공유, 활동은 팀 범위다.
   const [customers, setCustomers] = useState([])
   const [deals, setDeals] = useState([])
   const [activities, setActivities] = useState([])
@@ -166,8 +167,15 @@ export function AppProvider({ children }) {
     return () => unsubs.forEach((fn) => fn())
   }, [authUser, retry, onData, onErr])
 
-  // 2단계 — 팀 데이터. 내 팀이 정해진 뒤에 구독한다.
-  // 팀이 바뀌면(배정·이동) 통째로 다시 구독해 남의 팀 데이터가 남지 않게 한다.
+  // 팀 격리 도입 전에 만든 설정에는 기본 팀 id 가 없다. 관리자가 접속하면
+  // '배지터' 팀의 실제 id 를 한 번 저장해 이후 신규 사용자가 안전하게 자동 배정되게 한다.
+  useEffect(() => {
+    if (!authUser || !isAdmin || teams.length === 0) return
+    ensureDefaultTeam(teams).catch((err) => console.warn('기본 팀 설정 실패', err))
+  }, [authUser, isAdmin, teams])
+
+  // 2단계 — 업무 데이터. 내 팀이 정해진 뒤에 구독한다.
+  // 팀이 바뀌면 활동 구독을 다시 열어 남의 팀 활동이 남지 않게 한다.
   useEffect(() => {
     if (!authUser || !authUser.known) return undefined
     if (!canUseData(isAdmin, teamId)) {
@@ -178,8 +186,9 @@ export function AppProvider({ children }) {
     }
     const scope = { isAdmin, teamId }
     const unsubs = [
-      subscribeCustomers(scope, onData('customers', setCustomers), onErr('customers')),
-      subscribeDeals(scope, onData('deals', setDeals), onErr('deals')),
+      // 거래처·영업현황은 전사 공유, 활동은 자기 팀만 본다.
+      subscribeCustomers(undefined, onData('customers', setCustomers), onErr('customers')),
+      subscribeDeals(undefined, onData('deals', setDeals), onErr('deals')),
       subscribeActivities(scope, onData('activities', setActivities), onErr('activities')),
     ]
     return () => unsubs.forEach((fn) => fn())

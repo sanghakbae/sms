@@ -166,7 +166,7 @@ test('allocationSummary: 미할당·초과·목록 밖 할당을 정확히 센�
   assert.equal(orphan.unallocated, 5000)
 })
 
-test('리드는 검증 전이라 파이프라인 금액과 예상매출에서 빠진다', () => {
+test('이전 리드·검증 데이터는 상담 단계로 합쳐 집계한다', () => {
   const deals = [
     { stage: 'lead', amount: 1_000_000 },
     { stage: 'qualify', amount: 2_000_000 },
@@ -174,31 +174,33 @@ test('리드는 검증 전이라 파이프라인 금액과 예상매출에서 �
   ]
   const r = pipelineSummary(deals)
 
-  // 리드 금액은 total 에 들어가지 않는다 — 검증 안 된 단서까지 더하면 전망이 부풀려진다.
-  assert.equal(r.total, 6_000_000)
-  assert.equal(r.count, 2)
-  assert.equal(r.weighted, 2_000_000 * 0.2 + 4_000_000 * 0.5)
-
-  // 리드는 사라지지 않고 따로 집계된다.
-  assert.equal(r.leadTotal, 1_000_000)
-  assert.equal(r.leadCount, 1)
+  assert.equal(r.total, 7_000_000)
+  assert.equal(r.count, 3)
+  assert.equal(r.weighted, (1_000_000 + 2_000_000) * 0.3 + 4_000_000 * 0.5)
   assert.equal(r.openCount, 3)
+
+  const contact = stageBreakdown(deals).find((row) => row.stage.id === 'contact')
+  assert.equal(contact.count, 2)
+  assert.equal(contact.amount, 3_000_000)
 })
 
-test('검증 단계가 리드와 상담 사이에 들어간다', () => {
+test('영업현황 단계는 상담·제안·협상·수주만 사용한다', () => {
   const ids = stageBreakdown([]).map((r) => r.stage.id)
-  assert.deepEqual(ids, ['lead', 'qualify', 'contact', 'proposal', 'negotiation', 'won'])
+  assert.deepEqual(ids, ['contact', 'proposal', 'negotiation', 'won'])
 })
 
-test('실패한 리드는 파이프라인·리드 어느 쪽에도 들어가지 않는다', () => {
+test('실패한 이전 리드는 상담 진행 금액에서 빠진다', () => {
   const deals = [
     { stage: 'lead', amount: 1_000_000, lost: true },
     { stage: 'lead', amount: 3_000_000 },
   ]
   const r = pipelineSummary(deals)
-  assert.equal(r.leadTotal, 3_000_000)
-  assert.equal(r.leadCount, 1)
-  assert.equal(r.total, 0)
+  assert.equal(r.total, 3_000_000)
+  assert.equal(r.count, 1)
+
+  const contact = stageBreakdown(deals).find((row) => row.stage.id === 'contact')
+  assert.equal(contact.count, 1)
+  assert.equal(contact.lostCount, 1)
 })
 
 /* --------------------------------- 금액 표시 --------------------------------- */

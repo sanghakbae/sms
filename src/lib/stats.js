@@ -2,7 +2,7 @@
 
 import { monthKey, shiftMonth, todayISO, yearKey } from './format.js'
 import {
-  STAGES, dealProbability, isDealLost, isDealOpen, isDealWon, isPreQualified, isQualified,
+  STAGES, dealProbability, isDealLost, isDealOpen, isDealWon, isQualified, normalizeStageId,
 } from './pipeline.js'
 
 /** 딜이 종료된 월('YYYY-MM'). closedDate 우선, 없으면 expectedClose. */
@@ -23,27 +23,21 @@ export function monthlyWon(deals, month) {
 
 /**
  * 살아있는 파이프라인 요약.
- * total·weighted 는 '검증을 통과한' 딜만 센다 — 리드는 아직 단서라
- * 전망치에 섞이면 예상매출이 부풀려진다. 리드는 lead* 로 따로 돌려준다.
+ * total·weighted 는 진행 중인 영업 건만 센다.
  */
 export function pipelineSummary(deals) {
   let total = 0
   let weighted = 0
   let count = 0
-  let leadTotal = 0
-  let leadCount = 0
   for (const d of deals || []) {
     const amount = Number(d.amount) || 0
     if (isQualified(d)) {
       total += amount
       weighted += amount * (dealProbability(d) / 100)
       count += 1
-    } else if (isPreQualified(d)) {
-      leadTotal += amount
-      leadCount += 1
     }
   }
-  return { total, weighted, count, leadTotal, leadCount, openCount: count + leadCount }
+  return { total, weighted, count, openCount: count }
 }
 
 /**
@@ -54,7 +48,7 @@ export function pipelineSummary(deals) {
 export function stageBreakdown(deals) {
   const map = new Map(STAGES.map((s) => [s.id, { stage: s, count: 0, amount: 0, lostCount: 0, lostAmount: 0 }]))
   for (const d of deals) {
-    const row = map.get(d.stage)
+    const row = map.get(normalizeStageId(d.stage))
     if (!row) continue
     const amount = Number(d.amount) || 0
     if (isDealLost(d)) {

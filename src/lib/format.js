@@ -78,7 +78,13 @@ export function wonWithCompact(amount) {
 
 function trim(x) {
   // 3.40 → 3.4, 3.00 → 3
-  return Number(x.toFixed(1)).toString()
+  return Number(x.toFixed(1)).toLocaleString('ko-KR', { maximumFractionDigits: 1 })
+}
+
+/** 금액 입력란도 읽는 동안 자릿수를 놓치지 않도록 1,234,567 형태로 맞춘다. */
+export function formatAmountInput(value) {
+  const digits = String(value ?? '').replace(/[^0-9]/g, '')
+  return digits ? Number(digits).toLocaleString('ko-KR') : ''
 }
 
 export function formatDate(iso) {

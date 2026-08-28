@@ -31,6 +31,7 @@ export const UNASSIGNED = ''
 
 export const ROLE_LEADER = 'leader'
 export const ROLE_MEMBER = 'member'
+export const DEFAULT_TEAM_NAME = '배지터'
 
 export const ROLES = [
   { id: ROLE_LEADER, label: '팀장', hint: '자기 팀 데이터를 모두 수정할 수 있고 팀원 목표를 정한다' },
@@ -77,6 +78,11 @@ export function normalizeTeams(items) {
 export function getTeam(teams, id) {
   if (!id) return null
   return (teams || []).find((t) => t.id === id) || null
+}
+
+/** 신규 사용자가 처음 들어갈 기본 팀. 이름이 정확히 일치할 때만 사용한다. */
+export function defaultTeamId(teams) {
+  return normalizeTeams(teams).find((t) => t.name === DEFAULT_TEAM_NAME)?.id || UNASSIGNED
 }
 
 /** 팀 이름. 없어진 팀이면 id 를 그대로 보여준다 — 조용히 사라지면 추적이 안 된다. */
