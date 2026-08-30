@@ -188,10 +188,18 @@ function CommentThread({ activityId, user, canComment, notify }) {
 export function ActivityModal({ activity, customers, onClose, onSave }) {
   const [form, setForm] = useState(activity ? { ...EMPTY, ...activity } : EMPTY)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const submit = async (e) => {
     e.preventDefault()
+    // 내용이 없으면 목록에 종류 이름만 남아 무슨 일이 있었는지 알 수 없다.
+    // 딜·거래처 폼은 필수값을 막는데 활동만 빠져 있어 빈 기록이 쌓였다.
+    if (!(form.note || '').trim()) {
+      setError('무슨 일이 있었는지 적어주세요.')
+      return
+    }
+    setError('')
     setBusy(true)
     try {
       const c = customers.find((x) => x.id === form.customerId)
@@ -200,7 +208,7 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
         customerId: form.customerId || '',
         customerName: c?.name || '',
         date: form.date || todayISO(),
-        note: (form.note || '').trim(),
+        note: form.note.trim(),
       })
     } finally { setBusy(false) }
   }
@@ -219,6 +227,7 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
       }
     >
       <form id="act-form" onSubmit={submit} className="form">
+        {error && <div className="login-error">{error}</div>}
         <div className="field">
           <span>종류</span>
           <div className="stage-picker">
@@ -243,7 +252,7 @@ export function ActivityModal({ activity, customers, onClose, onSave }) {
             <input type="date" value={form.date} onChange={set('date')} />
           </label>
         </div>
-        <div className="field activity-note-field"><span>내용</span>
+        <div className="field activity-note-field"><span>내용 *</span>
           <MarkdownEditor
             value={form.note}
             onChange={(v) => setForm((f) => ({ ...f, note: v }))}

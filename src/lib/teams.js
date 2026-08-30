@@ -34,8 +34,8 @@ export const ROLE_MEMBER = 'member'
 export const DEFAULT_TEAM_NAME = '배지터'
 
 export const ROLES = [
-  { id: ROLE_LEADER, label: '팀장', hint: '자기 팀 데이터를 모두 수정할 수 있고 팀원 목표를 정한다' },
-  { id: ROLE_MEMBER, label: '팀원', hint: '자기 팀 데이터를 보고 자기 것만 수정한다' },
+  { id: ROLE_LEADER, label: '팀장', hint: '팀원 목표를 정하고 팀 실적을 관리한다' },
+  { id: ROLE_MEMBER, label: '팀원', hint: '자기 팀 데이터를 보고 함께 수정한다' },
 ]
 
 /** members 문서의 역할. 값이 없거나 이상하면 팀원으로 본다(권한을 더 주지 않는 쪽). */
@@ -304,10 +304,11 @@ export function canUseData(isAdmin, teamId) {
 export function canEditDoc(user, docu) {
   if (!user || !docu) return false
   if (user.isAdmin) return true
-  const sameTeam = Boolean(user.teamId) && docu.teamId === user.teamId
-  if (!sameTeam) return false
-  if (user.role === ROLE_LEADER) return true
-  return docu.owner === user.uid
+  // 같은 팀이면 누가 만들었든 고칠 수 있다.
+  // 영업은 한 거래처를 여러 사람이 같이 맡으므로, 만든 사람만 고칠 수 있으면
+  // 담당자가 자리를 비운 사이 아무도 손대지 못한다.
+  // firestore.rules 의 canWriteTeamDoc() 과 같은 기준을 유지할 것.
+  return Boolean(user.teamId) && docu.teamId === user.teamId
 }
 
 /** 팀장 이상인가 — 자기 팀 목표를 정할 수 있는 사람. */

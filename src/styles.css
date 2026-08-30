@@ -330,6 +330,11 @@ input, select, textarea { font-family: inherit; }
 .chips.grow { flex: 1; }
 .chip {
   --c: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  /* 아이콘과 라벨을 별도 span 으로 나누면서 사이 공백이 사라졌다.
+     모바일에서 라벨을 숨기려면 나눠야 하므로, 간격은 gap 으로 준다. */
+  gap: 5px;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 999px;
