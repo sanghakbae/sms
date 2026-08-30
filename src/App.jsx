@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AppProvider, useApp } from './context/AppContext.jsx'
 import Login from './pages/Login.jsx'
+import PwaBanner from './components/PwaBanner.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Customers from './pages/Customers.jsx'
 import Deals from './pages/Deals.jsx'
@@ -45,7 +46,7 @@ function NavIcon({ name }) {
 }
 
 function Shell() {
-  const { user, authReady, needsTeam, dataError, retryData, toast, isFirebaseConfigured, logout } = useApp()
+  const { user, authReady, needsTeam, dataError, sync, retryData, toast, isFirebaseConfigured, logout } = useApp()
   const [tab, setTab] = useState('dashboard')
 
   if (!isFirebaseConfigured) {
@@ -164,6 +165,18 @@ function Shell() {
           </button>
         ))}
       </nav>
+
+      {/* 오프라인이거나 아직 못 올린 쓰기가 있으면 알린다.
+          '저장했습니다' 만 띄우면 서버에 갔다고 오해한다. */}
+      {(sync.fromCache || sync.pending > 0) && (
+        <div className="sync-strip" role="status">
+          {sync.pending > 0
+            ? `미전송 ${sync.pending}건 · 연결되면 자동으로 올라갑니다`
+            : '오프라인 — 저장된 내용을 보고 있습니다'}
+        </div>
+      )}
+
+      <PwaBanner />
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

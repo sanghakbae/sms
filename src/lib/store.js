@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth'
 import {
   addDoc,
+  clearIndexedDbPersistence,
   collection,
   deleteDoc,
   doc,
@@ -75,6 +76,15 @@ export async function signInWithGoogle() {
 export async function signOutUser() {
   if (!isFirebaseConfigured) return
   await signOut(auth)
+  // 오프라인 캐시에는 거래처 연락처·딜 금액·메모가 그대로 남는다.
+  // 공용 기기나 분실 기기에서 다음 사람이 열어보지 못하게 로그아웃 때 비운다.
+  // 실패해도 로그아웃 자체는 이미 끝났으므로 막지 않는다.
+  try {
+    await clearIndexedDbPersistence(db)
+  } catch (err) {
+    // 다른 탭이 열려 있으면 지울 수 없다(failed-precondition). 그건 정상이다.
+    if (err?.code !== 'failed-precondition') console.warn('로컬 캐시 정리 실패', err)
+  }
 }
 
 /**
@@ -191,7 +201,15 @@ function subscribeCollection(name, order, onData, onError, scope) {
   const q = clauses.length ? query(ref, ...clauses) : ref
   return onSnapshot(
     q,
-    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (snap) => {
+      // 오프라인이면 캐시에서 온다. 아직 서버에 못 올린 쓰기가 있으면
+      // hasPendingWrites 가 참이다 — 화면이 '저장됨' 이라고 단정하지 않게 알린다.
+      reportSync(name, {
+        fromCache: snap.metadata.fromCache,
+        pending: snap.docs.filter((d) => d.metadata.hasPendingWrites).length,
+      })
+      onData(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    },
     (err) => onError && onError(err),
   )
 }
@@ -219,6 +237,31 @@ export function subscribeTargets(onData, onError) {
     (snap) => onData(snap.exists() ? snap.data() : {}),
     (err) => onError && onError(err),
   )
+}
+
+/* ------------------------------- 동기화 상태 알림 ------------------------------- */
+//
+// 오프라인 캐시를 켜면 '저장했습니다' 가 거짓이 될 수 있다 — 로컬에만 쌓였을 뿐
+// 서버에는 아직 못 갔기 때문이다. 컬렉션별 상태를 모아 화면이 알리게 한다.
+
+const syncState = new Map()
+const syncListeners = new Set()
+
+function reportSync(name, info) {
+  const prev = syncState.get(name)
+  if (prev && prev.fromCache === info.fromCache && prev.pending === info.pending) return
+  syncState.set(name, info)
+  const merged = {
+    fromCache: [...syncState.values()].some((v) => v.fromCache),
+    pending: [...syncState.values()].reduce((sum, v) => sum + v.pending, 0),
+  }
+  for (const fn of syncListeners) fn(merged)
+}
+
+/** 동기화 상태 구독. { fromCache, pending } 를 받는다. */
+export function onSyncState(fn) {
+  syncListeners.add(fn)
+  return () => syncListeners.delete(fn)
 }
 
 /* --------------------------------- 쓰기(CRUD) --------------------------------- */

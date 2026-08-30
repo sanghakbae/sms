@@ -8,3 +8,8 @@ createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// 서비스워커 등록. 실패해도 앱은 그대로 뜬다.
+import { initPwa } from './pwa.js'
+
+initPwa()

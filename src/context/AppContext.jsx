@@ -29,6 +29,7 @@ import {
   subscribeActivities,
   subscribeAdmins,
   subscribeAuditLogs,
+  onSyncState,
   subscribeCustomers,
   subscribeDeals,
   subscribeInvites,
@@ -90,6 +91,8 @@ export function AppProvider({ children }) {
   const [dataError, setDataError] = useState('')
   const [toast, setToast] = useState('')
   const [retry, setRetry] = useState(0)
+  // 오프라인 여부와 아직 서버에 못 올린 쓰기 건수.
+  const [syncState, setSyncState] = useState({ fromCache: false, pending: 0 })
   // 구독별 최신 오류. Firestore 는 오류가 나면 리스너를 떼어버리므로
   // 어느 구독이 죽었는지 따로 기억했다가 재구독으로 되살린다.
   const errorsRef = useRef({})
@@ -249,6 +252,8 @@ export function AppProvider({ children }) {
     }
     return subscribeInvites(onData('invites', setInviteList), onErr('invites'))
   }, [authUser, isAdmin, retry, onData, onErr])
+
+  useEffect(() => onSyncState(setSyncState), [])
 
   const retryData = useCallback(() => setRetry((n) => n + 1), [])
 
@@ -440,6 +445,7 @@ export function AppProvider({ children }) {
     // 관리자라도 팀이 없으면 못 만든다 — 눌러야 거부당할 버튼은 미리 잠근다.
     canCreate: Boolean(user && user.teamId),
     dataError,
+    sync: syncState,
     retryData,
     toast,
     notify,
@@ -449,7 +455,7 @@ export function AppProvider({ children }) {
   }), [
     user, authReady, customers, deals, activities, targets, teamTargets, ownerTargets,
     admins, invites, members, teams, services, auditLogs,
-    dataError, retryData, toast, notify, login, logout, actions,
+    dataError, syncState, retryData, toast, notify, login, logout, actions,
   ])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

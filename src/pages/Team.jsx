@@ -107,7 +107,12 @@ export default function Team() {
   )
   const rows = useMemo(() => memberRows(members, derived), [members, derived])
   const groups = useMemo(() => groupByTeam(rows, teams), [rows, teams])
-  const waiting = useMemo(() => unassignedRows(rows), [rows])
+  // 관리자는 팀 없이도 전사를 보고 쓴다 — 배정 대기로 잡아두면
+  // '처리해야 할 일' 로 오해된다. 배정 대상에서 뺀다.
+  const waiting = useMemo(
+    () => unassignedRows(rows).filter((r) => !isAdminEmail(r.email, admins)),
+    [rows, admins],
+  )
 
   const yearAlloc = (ownerTargets && ownerTargets[yearKey()]) || {}
   const allocOf = (email) => Number(yearAlloc[email]) || 0
@@ -382,12 +387,26 @@ function TeamRoster({
     notify('팀을 지웠습니다.')
   }
 
+  // 쓰기가 규칙에 막히면 예외가 난다. 잡지 않으면 아무 표시 없이 조용히 실패해
+  // '눌렀는데 안 된다' 가 된다 — 무엇이 막았는지 화면에 알린다.
+  const guard = async (label, run) => {
+    try {
+      await run()
+      return true
+    } catch (err) {
+      notify(err?.code === 'permission-denied'
+        ? `${label} 권한이 없습니다. 관리자 계정으로 로그인했는지 확인해주세요.`
+        : `${label} 실패: ${err?.message || err}`)
+      return false
+    }
+  }
+
   const assign = async (row, teamId) => {
     if (!row.uid) {
       notify('로그인 기록이 없는 계정은 팀에 넣을 수 없습니다.')
       return
     }
-    await setMemberTeam(row.uid, teamId)
+    if (!await guard('팀 배정', () => setMemberTeam(row.uid, teamId))) return
     notify(teamId
       ? `${row.name} 을(를) ${nameOfTeam(teams, teamId)} 에 넣었습니다.`
       : `${row.name} 을(를) 팀에서 뺐습니다.`)
