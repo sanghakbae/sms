@@ -1212,7 +1212,7 @@ button.col-head {
   .alloc-row .avatar { width: 26px; height: 26px; font-size: 10px; }
   .alloc-row .alloc-input,
   .alloc-row .alloc-actual { grid-column: auto; }
-  .alloc-row .alloc-input input { min-height: 30px; padding: 4px 6px; font-size: 11px !important; }
+  .alloc-row .alloc-input input { min-height: 30px; padding: 4px 6px; font-size: var(--m-font-input) !important; }
   .alloc-row .alloc-input small { font-size: 9.5px; }
   .alloc-row .alloc-actual { align-items: flex-end; }
   .alloc-row .alloc-actual b { font-size: 11px; }
@@ -1231,7 +1231,7 @@ button.col-head {
   .team-alloc-row .alloc-who small,
   .team-alloc-row .alloc-input small,
   .team-alloc-row .alloc-actual small { font-size: 9.5px; }
-  .team-alloc-row .alloc-input input { min-height: 30px; padding: 4px 6px; font-size: 11px; }
+  .team-alloc-row .alloc-input input { min-height: 30px; padding: 4px 6px; font-size: var(--m-font-input); }
   .team-alloc-row .alloc-actual b { font-size: 11px; }
 }
 
@@ -1790,11 +1790,16 @@ button.primary.sm { color: #fff; }
     --m-font-meta: 11px;
     --m-font-body: 12px;
     --m-font-control: 13px;
+    /* 포커스 가능한 입력칸 전용 하한.
+       iOS 는 글자가 16px 보다 작은 input/select/textarea 에 포커스가 가면
+       화면을 통째로 확대한다. 타이포 계층과 무관한 플랫폼 제약이라
+       --m-font-control 과 분리해 둔다. 절대 16px 아래로 내리지 말 것. */
+    --m-font-input: 16px;
     --m-font-section: 14px;
     --m-font-title: 16px;
   }
   body, button { font-size: var(--m-font-body); }
-  input, select, textarea { font-size: var(--m-font-control) !important; }
+  input, select, textarea { font-size: var(--m-font-input) !important; }
   .topbar { padding: 10px 12px; }
   .topbar h1 { font-size: 16px; }
   .topbar .who { font-size: 11.5px; }
@@ -1868,7 +1873,7 @@ button.primary.sm { color: #fff; }
   .modal-body { font-size: 12px; }
   .modal input,
   .modal select,
-  .modal textarea { font-size: 13px !important; }
+  .modal textarea { font-size: var(--m-font-input) !important; }
   .modal .field > span { font-size: 9.5px; }
   .modal .foot-row button { font-size: 11px; }
   .modal .mde-btn b,
@@ -2279,7 +2284,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   .roster-block .empty.sm { margin: 0; padding-block: 4px; }
   .invite-form { grid-template-columns: minmax(0, 1fr) 90px auto; gap: 4px; }
   .invite-form input,
-  .invite-form select { min-height: 28px; padding: 3px 5px; font-size: 10.5px !important; }
+  .invite-form select { min-height: 28px; padding: 3px 5px; font-size: var(--m-font-input) !important; }
   .invite-row { grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 4px; font-size: 10px; }
   .team-card { padding: 7px 8px; margin-bottom: 6px; }
   .tc-head {
@@ -2301,7 +2306,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
   .team-card .avatar { width: 26px; height: 26px; font-size: 10.5px; }
   .roster-act { grid-column: auto; flex-wrap: nowrap; gap: 4px; min-width: 0; }
-  .roster-act select { width: 100%; min-width: 0; min-height: 28px; max-width: none; flex: 1 1 110px; padding: 3px 6px; font-size: 11px; }
+  .roster-act select { width: 100%; min-width: 0; min-height: 28px; max-width: none; flex: 1 1 110px; padding: 3px 6px; }
   .roster-act select[aria-label$="권한"] { flex: 0 0 76px; }
   .trade-row { padding-block: 6px; }
   .export-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
@@ -2317,8 +2322,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 719px) {
   button:not(.icon-btn):not(.mde-btn) { padding: 4px 7px; }
-  .admin-add select,
   .admin-add button { min-height: 28px; height: 28px; padding-block: 2px; font-size: 11px !important; }
+  /* select 는 포커스 대상이라 하한을 지켜야 한다 — 높이만 맞춘다. */
+  .admin-add select { min-height: 28px; height: 28px; padding-block: 2px; }
   .dashboard-scope { padding-bottom: 5px; margin-bottom: -8px; }
   .dashboard-scope .seg button { min-height: 34px; padding: 6px 11px; font-size: 13px; }
   .trade-summary-grid .stat-card {
@@ -2411,4 +2417,33 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     bottom: 24px;
     max-width: 420px;
   }
+}
+
+/* 마크다운 편집기 툴바가 좁은 모달에서 가로로 삐져나왔다.
+   페이지를 밀지 말고 툴바 안에서만 넘기게 한다. */
+.mde-bar {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 좁은 화면에서 안내가 화면을 잡아먹지 않게 한다. */
+@media (max-width: 719px) {
+  .sync-strip {
+    margin: 8px 14px 0;
+    padding: 7px 11px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .pwa-banner {
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--tabbar-h) + 8px + env(safe-area-inset-bottom));
+    padding: 10px 12px;
+    gap: 8px;
+    font-size: 12.5px;
+    border-radius: 10px;
+  }
+  .pwa-cta { padding: 6px 10px; font-size: 12px; }
 }

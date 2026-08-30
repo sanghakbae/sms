@@ -166,13 +166,12 @@ function Shell() {
         ))}
       </nav>
 
-      {/* 오프라인이거나 아직 못 올린 쓰기가 있으면 알린다.
-          '저장했습니다' 만 띄우면 서버에 갔다고 오해한다. */}
-      {(sync.fromCache || sync.pending > 0) && (
+      {/* 아직 서버에 못 올린 쓰기만 알린다.
+          fromCache 는 온라인에서도 참이 된다 — Firestore 가 캐시부터 주기 때문이다.
+          그걸 '오프라인' 으로 읽으면 멀쩡할 때도 경고가 뜬다. */}
+      {sync.pending > 0 && (
         <div className="sync-strip" role="status">
-          {sync.pending > 0
-            ? `미전송 ${sync.pending}건 · 연결되면 자동으로 올라갑니다`
-            : '오프라인 — 저장된 내용을 보고 있습니다'}
+          미전송 {sync.pending}건 · 연결되면 자동으로 올라갑니다
         </div>
       )}
 
