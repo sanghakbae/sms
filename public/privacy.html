@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f766e" />
+<title>개인정보처리방침 · 세일즈</title>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<style>
+  :root {
+    --bg: #f6f8fa; --surface: #fff; --line: #e6eaef; --ink: #0d1526;
+    --muted: #6b7787; --brand: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.7; letter-spacing: -0.005em;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { margin-bottom: 28px; }
+  .back { display: inline-block; margin-bottom: 18px; color: var(--brand); font-weight: 700; font-size: 14px; text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 8px; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 14px; }
+  h2 { font-size: 16px; font-weight: 800; margin: 0 0 12px; letter-spacing: -0.02em; }
+  h3 { font-size: 14px; font-weight: 700; margin: 18px 0 6px; }
+  p, li { font-size: 14.5px; }
+  p { margin: 0 0 10px; }
+  ul, ol { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 700; }
+  .note { color: var(--muted); font-size: 13px; }
+  .contact { background: #ecf7f5; border-color: #cfe9e5; }
+  .contact b { color: var(--brand); }
+  a { color: var(--brand); }
+  footer { margin-top: 24px; color: var(--muted); font-size: 12.5px; text-align: center; }
+  @media (max-width: 600px) {
+    .wrap { padding: 20px 14px 60px; }
+    h1 { font-size: 22px; }
+    .card { padding: 16px; }
+    table { font-size: 12.5px; }
+    th, td { padding: 7px 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="/">← 세일즈로 돌아가기</a>
+    <h1>개인정보처리방침</h1>
+    <p class="meta">시행일: 2026년 8월 30일 · 서비스명: 세일즈(영업 관리시스템)</p>
+  </header>
+
+  <div class="card">
+    <h2>1. 총칙</h2>
+    <p>
+      본 방침은 영업 관리시스템 '세일즈'(이하 '서비스')가 이용자의 개인정보를 어떻게 수집·이용·보관·파기하는지 알리기 위한 것입니다.
+      서비스는 사내 영업 활동 관리를 목적으로 하는 <b>업무용 도구</b>로, 승인된 구성원만 이용할 수 있습니다.
+    </p>
+    <p class="note">
+      본 방침에서 '이용자'는 서비스에 로그인하는 구성원을, '거래처 담당자 정보'는 이용자가 영업 활동을 위해 서비스에 입력하는 제3자의 연락처 정보를 뜻합니다.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>2. 수집하는 개인정보 항목과 수집 방법</h2>
+
+    <h3>가. 이용자 정보 — 구글 계정 로그인 시 자동 수집</h3>
+    <table>
+      <tr><th>항목</th><th>수집 방법</th><th>이용 목적</th></tr>
+      <tr><td>이메일 주소</td><td>구글 OAuth 인증</td><td>본인 식별, 접근 권한 판정, 팀 배정</td></tr>
+      <tr><td>이름(표시 이름)</td><td>구글 OAuth 인증</td><td>담당자 표시, 실적 집계</td></tr>
+      <tr><td>프로필 사진 주소</td><td>구글 OAuth 인증</td><td>화면 내 프로필 표시</td></tr>
+      <tr><td>계정 고유번호(UID)</td><td>인증 서버 자동 생성</td><td>데이터 소유자 식별</td></tr>
+      <tr><td>최근 로그인 일시</td><td>서비스 자동 기록</td><td>구성원 명단 관리</td></tr>
+    </table>
+    <p class="note">서비스는 구글 계정의 비밀번호를 수집하거나 저장하지 않습니다. 인증은 전적으로 구글이 처리합니다.</p>
+
+    <h3>나. 거래처 담당자 정보 — 이용자가 직접 입력</h3>
+    <table>
+      <tr><th>항목</th><th>이용 목적</th></tr>
+      <tr><td>거래처명, 업종, 등급</td><td>영업 대상 관리</td></tr>
+      <tr><td>담당자 이름, 전화번호, 이메일 주소</td><td>영업 연락 및 이력 관리</td></tr>
+      <tr><td>영업기회 내용, 금액, 진행 단계, 메모</td><td>영업 파이프라인 관리</td></tr>
+      <tr><td>영업 활동 기록(방문·전화·메일·미팅 등)</td><td>영업 이력 관리</td></tr>
+    </table>
+    <p class="note">
+      거래처 담당자 정보는 이용자가 업무 목적으로 입력하는 정보입니다.
+      이용자는 해당 정보를 적법하게 수집하고 서비스에 입력할 책임이 있습니다.
+    </p>
+
+    <h3>다. 자동 생성 정보</h3>
+    <ul>
+      <li>데이터 생성·수정 일시 및 수행자(감사 기록)</li>
+      <li>서비스 이용 과정에서 발생하는 접속 기록(호스팅·인증 서비스 제공자가 보관)</li>
+    </ul>
+    <p class="note">서비스는 광고 식별자, 위치정보, 결제정보를 수집하지 않으며 별도의 분석 도구를 사용하지 않습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>3. 개인정보의 보유 및 이용 기간</h2>
+    <ul>
+      <li><b>이용자 정보</b> — 서비스 이용 종료(구성원 명단에서 삭제) 시까지 보유하며, 지체 없이 파기합니다.</li>
+      <li><b>거래처 담당자 정보 및 영업 데이터</b> — 이용자가 삭제할 때까지 보유합니다. 영업 이력 관리 목적상 이용자의 퇴사 후에도 데이터 자체는 조직에 남을 수 있습니다.</li>
+      <li><b>감사 기록</b> — 데이터 변경 이력 추적 목적으로 보유하며, 필요가 소멸한 시점에 파기합니다.</li>
+    </ul>
+    <p>관계 법령에 따라 보존이 필요한 경우 해당 법령이 정한 기간 동안 보관합니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>4. 개인정보의 제3자 제공</h2>
+    <p>서비스는 이용자의 개인정보를 제3자에게 제공하지 않습니다. 다만 다음의 경우는 예외로 합니다.</p>
+    <ul>
+      <li>이용자가 사전에 동의한 경우</li>
+      <li>법령에 근거하거나, 수사기관이 법령이 정한 절차에 따라 요구하는 경우</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5. 개인정보 처리의 위탁</h2>
+    <p>서비스 운영을 위해 아래와 같이 개인정보 처리 업무를 위탁하고 있습니다.</p>
+    <table>
+      <tr><th>수탁자</th><th>위탁 업무</th><th>보관 위치</th></tr>
+      <tr><td>Google LLC (Firebase)</td><td>계정 인증, 데이터베이스 보관</td><td>해외(구글 데이터센터)</td></tr>
+      <tr><td>GitHub, Inc. (GitHub Pages)</td><td>웹사이트 호스팅</td><td>해외</td></tr>
+    </table>
+    <p class="note">
+      위 수탁자는 각사의 개인정보처리방침 및 보안 정책에 따라 정보를 처리합니다.
+      서비스는 위탁 계약 시 개인정보가 안전하게 관리되도록 필요한 사항을 규정하고 있습니다.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>6. 이용자 및 정보주체의 권리와 행사 방법</h2>
+    <p>이용자와 거래처 담당자는 언제든지 다음 권리를 행사할 수 있습니다.</p>
+    <ul>
+      <li>개인정보 열람 요구</li>
+      <li>오류가 있을 경우 정정 요구</li>
+      <li>삭제 요구</li>
+      <li>처리 정지 요구</li>
+    </ul>
+    <p>
+      이용자는 서비스 내에서 자신이 입력한 데이터를 직접 열람·수정·삭제할 수 있습니다.
+      그 밖의 요구는 아래 개인정보 보호책임자에게 이메일로 연락하시면 지체 없이 조치합니다.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>7. 개인정보의 파기 절차 및 방법</h2>
+    <p>보유 기간이 지나거나 처리 목적이 달성된 개인정보는 지체 없이 파기합니다.</p>
+    <ul>
+      <li><b>전자적 파일</b> — 복구할 수 없는 방법으로 영구 삭제합니다.</li>
+      <li><b>출력물</b> — 분쇄하거나 소각합니다.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>8. 개인정보의 안전성 확보 조치</h2>
+    <ul>
+      <li><b>접근 통제</b> — 구글 계정 인증을 거친 구성원만 접근할 수 있으며, 팀에 배정되기 전에는 어떤 데이터도 조회할 수 없습니다.</li>
+      <li><b>권한 최소화</b> — 관리자·팀장·팀원으로 권한을 나누어, 자신의 팀 데이터와 본인이 작성한 항목으로 접근 범위를 제한합니다.</li>
+      <li><b>서버 측 검증</b> — 접근 권한은 화면뿐 아니라 데이터베이스 보안 규칙에서 함께 검사합니다.</li>
+      <li><b>전송 구간 암호화</b> — 모든 통신은 HTTPS(TLS)로 암호화됩니다.</li>
+      <li><b>변경 이력 관리</b> — 주요 데이터 변경 내역을 기록합니다.</li>
+    </ul>
+    <h3>기기 내 저장에 관한 안내</h3>
+    <p>
+      서비스는 네트워크가 끊긴 상황에서도 이용할 수 있도록 조회한 데이터를 이용자의 기기(브라우저 저장소)에 임시 보관합니다.
+      이 데이터는 <b>로그아웃 시 삭제</b>됩니다. 공용 기기에서 이용한 경우 반드시 로그아웃해 주시기 바랍니다.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>9. 쿠키 및 유사 기술의 사용</h2>
+    <p>
+      서비스는 광고나 행태 정보 수집을 위한 쿠키를 사용하지 않습니다.
+      로그인 상태 유지와 화면 설정(예: 목록 접힘 상태) 보관을 위해 브라우저 저장소를 사용하며,
+      이용자는 브라우저 설정에서 언제든지 이를 삭제할 수 있습니다.
+    </p>
+  </div>
+
+  <div class="card contact">
+    <h2>10. 개인정보 보호책임자</h2>
+    <p>개인정보 처리에 관한 문의, 불만 처리, 피해 구제는 아래로 연락해 주시기 바랍니다.</p>
+    <table>
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>개인정보 보호책임자</td><td><b>배상학</b></td></tr>
+      <tr><td>이메일</td><td><a href="mailto:bae@sanghak.kr">bae@sanghak.kr</a></td></tr>
+    </table>
+    <p class="note">
+      그 밖에 개인정보 침해에 대한 신고나 상담이 필요하신 경우 아래 기관에 문의하실 수 있습니다.<br />
+      개인정보침해신고센터(privacy.kisa.or.kr, 국번없이 118) ·
+      개인정보 분쟁조정위원회(kopico.go.kr, 1833-6972) ·
+      대검찰청 사이버수사과(spo.go.kr, 1301) ·
+      경찰청 사이버수사국(ecrm.police.go.kr, 182)
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>11. 방침의 변경</h2>
+    <p>
+      본 방침의 내용이 추가·삭제·수정되는 경우, 변경 사항의 시행 7일 전부터 서비스 내 공지를 통해 알립니다.
+      다만 이용자 권리의 중대한 변경이 있는 경우 30일 전에 알립니다.
+    </p>
+    <p class="meta">시행일: 2026년 8월 30일 (최초 제정)</p>
+  </div>
+
+  <footer>세일즈 · 영업 관리시스템</footer>
+</div>
+</body>
+</html>

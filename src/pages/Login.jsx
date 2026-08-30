@@ -41,6 +41,10 @@ export default function Login() {
             ? `${ALLOWED_DOMAINS.map((d) => `@${d}`).join(', ')} 계정만 접근할 수 있습니다.`
             : 'Google 계정으로 로그인하면 바로 사용할 수 있습니다.'}
         </p>
+
+        <p className="login-foot">
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
+        </p>
       </div>
     </div>
   )

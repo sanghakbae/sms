@@ -48,7 +48,14 @@ export default function Activities() {
               type="button"
               className={`chip${typeFilter === t.id ? ' on' : ''}`}
               onClick={() => setTypeFilter(typeFilter === t.id ? '' : t.id)}
-            >{t.icon} {t.label}</button>
+              aria-label={t.label}
+              title={t.label}
+            >
+              {/* 좁은 화면에서는 아이콘만 남긴다 — 라벨까지 넣으면 한 줄을 넘긴다.
+                  글자가 사라져도 뜻이 통하도록 aria-label 과 title 을 붙인다. */}
+              <span aria-hidden="true">{t.icon}</span>
+              <span className="chip-label">{t.label}</span>
+            </button>
           ))}
         </div>
         <button

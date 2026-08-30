@@ -50,7 +50,13 @@ export default function Settings() {
         </>
       )}
 
-      <p className="foot-note">영업 관리시스템 · React + Firebase</p>
+      <footer className="app-foot">
+        <a href="/privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
+        <span className="app-foot-sep" aria-hidden="true">·</span>
+        <span>개인정보 보호책임자 배상학</span>
+        <span className="app-foot-sep" aria-hidden="true">·</span>
+        <a href="mailto:bae@sanghak.kr">bae@sanghak.kr</a>
+      </footer>
     </main>
   )
 }

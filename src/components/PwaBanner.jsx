@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { applyUpdate, onPwaState } from '../pwa.js'
 import { isIos, isStandalone } from '../lib/platform.js'
 
-const IOS_HINT_KEY = 'pwa.iosHintDismissed'
+const IOS_HINT_KEY = 'pwa.iosHintDismissedAt'
+const ONE_DAY = 24 * 60 * 60 * 1000
 
 /**
  * 화면 아래 띄우는 PWA 안내 두 가지.
@@ -37,8 +38,11 @@ export default function PwaBanner() {
 
   useEffect(() => {
     if (!isIos() || isStandalone()) return
+    // 닫으면 하루 동안 다시 띄우지 않는다. 영영 숨기면 나중에 설치하려는
+    // 사람이 방법을 찾지 못하고, 매번 띄우면 성가시다.
     try {
-      if (localStorage.getItem(IOS_HINT_KEY)) return
+      const at = Number(localStorage.getItem(IOS_HINT_KEY) || 0)
+      if (at && Date.now() - at < ONE_DAY) return
     } catch { /* 저장소가 막혀 있어도 안내는 띄운다 */ }
     // 열자마자 띄우면 성가시다. 잠깐 써 본 뒤에 알린다.
     const id = setTimeout(() => setShowIosHint(true), 4000)
@@ -47,7 +51,7 @@ export default function PwaBanner() {
 
   const dismissIos = () => {
     setShowIosHint(false)
-    try { localStorage.setItem(IOS_HINT_KEY, '1') } catch { /* 무시 */ }
+    try { localStorage.setItem(IOS_HINT_KEY, String(Date.now())) } catch { /* 무시 */ }
   }
 
   if (needRefresh) {
@@ -63,6 +67,11 @@ export default function PwaBanner() {
   if (showIosHint) {
     return (
       <div className="pwa-banner pwa-install" role="status">
+        {/* 홈 화면에 어떤 아이콘·이름으로 깔리는지 미리 보여준다. */}
+        <div className="pwa-preview" aria-hidden="true">
+          <img src="/icon-192.png" alt="" width="44" height="44" />
+          <span>영업관리</span>
+        </div>
         <div className="pwa-install-body">
           <b className="pwa-install-title">홈 화면에 추가하면 앱처럼 쓸 수 있습니다</b>
           <p className="pwa-install-why">주소창 없이 전체화면으로 열리고, 신호가 없어도 실행됩니다.</p>
