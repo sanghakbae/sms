@@ -10,6 +10,25 @@ const IOS_HINT_KEY = 'pwa.iosHintDismissed'
  *  - 아이폰에서 아직 홈 화면에 안 넣었을 때: 설치 방법을 알려준다.
  *    아이폰 사파리에는 설치 버튼이 없어서 직접 알려주지 않으면 방법을 모른다.
  */
+/** iOS 공유 버튼 아이콘. 유니코드 문자는 기기마다 다른 글자로 나와서 직접 그린다. */
+function ShareIcon() {
+  return (
+    <svg className="pwa-share-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+      {/* 위가 열린 상자 + 위로 나가는 화살표 — iOS 공유 아이콘 모양. */}
+      <path
+        d="M8 10H6.4A1.4 1.4 0 0 0 5 11.4v7.2A1.4 1.4 0 0 0 6.4 20h11.2a1.4 1.4 0 0 0 1.4-1.4v-7.2A1.4 1.4 0 0 0 17.6 10H16"
+        fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+      <path
+        d="M12 14V4.2M12 4.2 9.3 6.9M12 4.2l2.7 2.7"
+        fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export default function PwaBanner() {
   const [needRefresh, setNeedRefresh] = useState(false)
   const [showIosHint, setShowIosHint] = useState(false)
@@ -43,9 +62,21 @@ export default function PwaBanner() {
 
   if (showIosHint) {
     return (
-      <div className="pwa-banner" role="status">
-        <span>홈 화면에 추가하면 앱처럼 쓸 수 있습니다. 공유 <b>⎋</b> → <b>홈 화면에 추가</b></span>
-        <button type="button" className="pwa-x" onClick={dismissIos} aria-label="닫기">✕</button>
+      <div className="pwa-banner pwa-install" role="status">
+        <div className="pwa-install-body">
+          <b className="pwa-install-title">홈 화면에 추가하면 앱처럼 쓸 수 있습니다</b>
+          <p className="pwa-install-why">주소창 없이 전체화면으로 열리고, 신호가 없어도 실행됩니다.</p>
+          <ol className="pwa-steps">
+            <li>
+              화면 아래 <ShareIcon /> <b>공유</b> 를 누릅니다
+            </li>
+            <li>
+              목록을 아래로 내려 <b>홈 화면에 추가</b> 를 고릅니다
+              <span className="pwa-step-note">안 보이면 맨 아래 <b>더 보기</b> 를 누르세요</span>
+            </li>
+          </ol>
+        </div>
+        <button type="button" className="pwa-x" onClick={dismissIos} aria-label="안내 닫기">✕</button>
       </div>
     )
   }

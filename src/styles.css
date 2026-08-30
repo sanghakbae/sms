@@ -2447,3 +2447,36 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
   .pwa-cta { padding: 6px 10px; font-size: 12px; }
 }
+
+/* 설치 안내는 한 줄에 욱여넣지 않는다 — 두 단계를 순서대로 읽게 한다. */
+.pwa-banner.pwa-install { align-items: flex-start; padding: 14px; gap: 8px; }
+.pwa-install-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pwa-install-title { font-size: 13.5px; font-weight: 800; line-height: 1.45; }
+.pwa-install-why { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255, 255, 255, 0.72); }
+
+.pwa-steps {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.92);
+}
+.pwa-steps li::marker { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
+.pwa-steps b { font-weight: 800; color: #fff; }
+.pwa-step-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.62);
+}
+.pwa-step-note b { font-weight: 700; color: rgba(255, 255, 255, 0.85); }
+
+/* 아이콘이 글자 사이에서 붕 뜨지 않게 기준선을 맞춘다. */
+.pwa-share-icon {
+  display: inline-block;
+  vertical-align: -3px;
+  margin: 0 1px;
+}
