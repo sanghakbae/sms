@@ -1250,16 +1250,6 @@ button.col-head {
 
 /* =============================== 모바일 정리 =============================== */
 
-/* iOS 는 글자가 16px 보다 작은 입력칸에 포커스가 가면 화면을 자동으로 확대한다.
-   일반 입력칸은 16px 하한을 유지하고, 10px로 통일한 업무 모달은
-   index.html 의 고정 viewport 로 화면 확대를 막는다. */
-@media (max-width: 719px) {
-  /* !important 가 필요하다 — .field input 같은 클래스 선택자가 더 강해서
-     그냥 두면 덮이고, 새 입력칸이 추가될 때마다 또 빠진다.
-     이건 화면 취향이 아니라 플랫폼 제약이라 전부 이겨야 한다. */
-  input, select, textarea { font-size: 16px !important; }
-}
-
 /* 긴 계정명이 헤더를 잠식하지 않게. */
 .topbar .who {
   min-width: 0;
@@ -1802,11 +1792,8 @@ button.primary.sm { color: #fff; }
     --m-font-meta: 10px;
     --m-font-body: 11px;
     --m-font-control: 12px;
-    /* 포커스 가능한 입력칸 전용 하한.
-       iOS 는 글자가 16px 보다 작은 input/select/textarea 에 포커스가 가면
-       화면을 통째로 확대한다. 타이포 계층과 무관한 플랫폼 제약이라
-       --m-font-control 과 분리해 둔다. 절대 16px 아래로 내리지 말 것. */
-    --m-font-input: 16px;
+    /* 고정 viewport를 쓰는 모바일 입력 글자 규격. */
+    --m-font-input: 10px;
     --m-font-section: 13px;
     --m-font-title: 15px;
   }
@@ -2336,7 +2323,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 719px) {
   button:not(.icon-btn):not(.mde-btn) { padding: 4px 7px; }
   .admin-add button { min-height: 28px; height: 28px; padding-block: 2px; font-size: 11px !important; }
-  /* select 는 포커스 대상이라 하한을 지켜야 한다 — 높이만 맞춘다. */
+  /* 관리자 추가 행도 다른 선택 상자와 같은 자연 높이를 쓴다. */
   .admin-add select { min-height: 28px; height: 28px; padding-block: 2px; }
   .dashboard-scope { padding-bottom: 5px; margin-bottom: -8px; }
   .dashboard-scope .seg button { min-height: 34px; padding: 6px 11px; font-size: 13px; }
@@ -2667,6 +2654,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
+/* 입력 글자는 화면별 최종 규격에서 한 번만 결정한다. */
+#root input,
+#root select,
+#root textarea {
+  font-size: 12px !important;
+}
+
 /* ========================== 모바일 화면 최종 규격 ========================== */
 /* 기능별 모바일 규칙보다 뒤에서 적용한다. 화면마다 같은 요소의 크기가 달라지지 않게
    글자와 자연 높이 기준을 여기 한 곳에서 마감한다. */
@@ -2738,4 +2732,22 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     letter-spacing: -0.04em;
   }
   .dashboard .lb-row { padding-right: 14px; }
+
+  /* 연 목표 입력은 PC용 3열 최소 너비를 모바일에 가져오면 저장 버튼이 화면 밖으로 나간다. */
+  .target-form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .target-form-row .field { min-width: 0; }
+  .target-save {
+    width: 100%;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  #root input,
+  #root select,
+  #root textarea {
+    font-size: var(--m-ui-text) !important;
+  }
 }

@@ -34,6 +34,23 @@ test('모든 모바일 셀렉트는 10px 글자와 자연 높이를 쓴다', () 
   assert.match(rule[1], /line-height:\s*1\.2/)
 })
 
+test('PC 입력 계열은 모두 12px이고 모바일에서는 모두 10px이다', () => {
+  assert.match(CSS, /#root input,\s*\n#root select,\s*\n#root textarea\s*\{\s*font-size:\s*12px\s*!important/)
+  assert.match(CSS, /@media \(max-width:\s*719px\)[\s\S]*#root input,\s*\n\s*#root select,\s*\n\s*#root textarea\s*\{\s*font-size:\s*var\(--m-ui-text\)\s*!important/)
+})
+
+test('연 매출목표 입력 행은 모바일에서 화면 밖으로 넘치지 않는다', () => {
+  const mobile = CSS.slice(CSS.lastIndexOf('@media (max-width: 719px)'))
+  const row = mobile.match(/\.target-form-row\s*\{([^}]*)\}/)
+  const button = mobile.match(/\.target-save\s*\{([^}]*)\}/)
+  assert.ok(row, '모바일 연 매출목표 행 규칙이 없습니다')
+  assert.ok(button, '모바일 목표 저장 버튼 규칙이 없습니다')
+  assert.match(row[1], /grid-template-columns:\s*minmax\(0, 1fr\)/)
+  assert.match(button[1], /width:\s*100%/)
+  assert.match(button[1], /min-width:\s*0/)
+  assert.match(button[1], /margin-top:\s*0/)
+})
+
 test('10px 입력 화면은 모바일 자동 확대를 막는 viewport와 함께 쓴다', () => {
   assert.match(HTML, /maximum-scale=1/)
   assert.match(HTML, /user-scalable=no/)
