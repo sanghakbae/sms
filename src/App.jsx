@@ -151,7 +151,7 @@ function Shell() {
       <nav className="tabbar">
         <div className="tabbar-brand">
           <span className="ico" aria-hidden="true"><NavIcon name="brand" /></span>
-          세일즈
+          영업관리
         </div>
         {tabs.map((t) => (
           <button

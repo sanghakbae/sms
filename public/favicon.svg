@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="세일즈">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="영업관리">
   <rect width="64" height="64" rx="14" fill="#0f766e"/>
   <!-- 우상향 실적선 + 마지막 지점 강조. 앱의 파이프라인 성격을 그대로 쓴다. -->
   <polyline points="14,44 26,32 36,38 50,20"

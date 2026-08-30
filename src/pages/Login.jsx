@@ -25,7 +25,7 @@ export default function Login() {
       <div className="login-card">
         <div className="login-brand">
           <div className="login-mark" aria-hidden="true">📈</div>
-          <h1>세일즈</h1>
+          <h1>영업관리</h1>
           <p>영업 관리시스템</p>
         </div>
 
