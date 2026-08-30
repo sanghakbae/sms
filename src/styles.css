@@ -2640,9 +2640,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* 빈 상태 문구가 한 칸에 눌리지 않게 가로로 편다. */
 .trade-list .empty { grid-column: 1 / -1; }
 
-/* 메뉴 권한·알림 패널이 모바일 글자 규격을 안 따라 혼자 커 보였다.
-   입력칸만 iOS 확대 하한(16px)을 지키고, 나머지는 화면 규격을 따른다.
-   셀렉트는 글자를 못 줄이는 대신 높이와 여백을 줄여 덩치를 낮춘다. */
+/* 메뉴 권한·알림 패널이 모바일 글자 규격을 안 따라 혼자 커 보였다. */
 @media (max-width: 719px) {
   .menuacc-row { padding: 8px 0; gap: 10px; }
   .menuacc-name { font-size: var(--m-font-control); }
@@ -2684,6 +2682,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   #root button {
     padding: var(--m-compact-pad-y) var(--m-compact-pad-x) !important;
     font-size: var(--m-button-text) !important;
+  }
+
+  /* 모바일 화면은 viewport 확대를 잠근 상태이므로 모든 선택 상자를 같은 밀도로 쓴다.
+     숫자 높이를 강제하지 않고 글자와 상하 여백으로 자연 높이를 만든다. */
+  #root select {
+    height: auto !important;
+    min-height: auto !important;
+    padding-top: var(--m-compact-pad-y) !important;
+    padding-bottom: var(--m-compact-pad-y) !important;
+    font-size: var(--m-ui-text) !important;
+    line-height: 1.2;
   }
 
   /* 검색 입력과 추가 버튼은 숫자 높이 없이 같은 타이포와 박스 모델로 맞춘다. */

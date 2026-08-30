@@ -23,6 +23,17 @@ test('검색 입력과 추가 버튼은 강제 높이 없이 같은 박스 모�
   assert.match(rule[1], /line-height:\s*1\.2/)
 })
 
+test('모든 모바일 셀렉트는 10px 글자와 자연 높이를 쓴다', () => {
+  const rule = CSS.match(/#root select\s*\{([^}]*)\}/)
+  assert.ok(rule, '모바일 셀렉트 공통 규칙이 없습니다')
+  assert.match(rule[1], /height:\s*auto\s*!important/)
+  assert.match(rule[1], /min-height:\s*auto\s*!important/)
+  assert.match(rule[1], /padding-top:\s*var\(--m-compact-pad-y\)\s*!important/)
+  assert.match(rule[1], /padding-bottom:\s*var\(--m-compact-pad-y\)\s*!important/)
+  assert.match(rule[1], /font-size:\s*var\(--m-ui-text\)\s*!important/)
+  assert.match(rule[1], /line-height:\s*1\.2/)
+})
+
 test('10px 입력 화면은 모바일 자동 확대를 막는 viewport와 함께 쓴다', () => {
   assert.match(HTML, /maximum-scale=1/)
   assert.match(HTML, /user-scalable=no/)
