@@ -56,9 +56,9 @@ export default function PwaBanner() {
 
   if (needRefresh) {
     return (
-      <div className="pwa-banner" role="status">
-        <span>새 버전이 준비됐습니다.</span>
-        <button type="button" className="pwa-cta" onClick={applyUpdate}>지금 새로고침</button>
+      <div className="pwa-banner" role="alert">
+        <span>새 업데이트가 있습니다.</span>
+        <button type="button" className="pwa-cta" onClick={applyUpdate}>업데이트</button>
         <button type="button" className="pwa-x" onClick={() => setNeedRefresh(false)} aria-label="닫기">✕</button>
       </div>
     )
