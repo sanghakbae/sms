@@ -2056,7 +2056,7 @@ button.primary.sm { color: #fff; }
 }
 .chip-select:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
 
-.trade-list { display: flex; flex-direction: column; gap: 8px; }
+.trade-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
 /*
   색 막대를 별도 칸으로 두면 숫자 칸(nowrap)이 늘어날 때 제목 칸을 밀어내
   글자가 잘렸다. 막대는 행의 왼쪽 테두리로 그리고, 칸은 두 개만 둔다.
@@ -2621,3 +2621,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   .menuacc-row { gap: 8px; }
   .menuacc-row select { min-width: 96px; }
 }
+
+/* 거래 목록도 거래처와 같은 기준으로 열을 늘린다.
+   한 줄에 하나씩만 세우면 넓은 화면에서 행이 지나치게 길어져
+   다른 메뉴보다 커 보인다. 한 행에 최대 4개까지 — 금액·상태가 붙어 있어
+   거래처 카드보다 폭이 더 필요하다. */
+@media (min-width: 900px)  { .trade-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1300px) { .trade-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1700px) { .trade-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* 빈 상태 문구가 한 칸에 눌리지 않게 가로로 편다. */
+.trade-list .empty { grid-column: 1 / -1; }
