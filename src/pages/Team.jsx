@@ -595,7 +595,7 @@ function TeamRoster({
           </div>
         ))}
 
-        <form onSubmit={addTeam} className="admin-add">
+        <form onSubmit={addTeam} className="admin-add team-create">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}

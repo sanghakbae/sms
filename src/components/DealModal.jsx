@@ -146,6 +146,7 @@ function DealForm({ deal, customers, services, members, isAdmin, canEdit, canDel
 
   return (
     <Modal
+      className="deal-form-modal"
       title={deal ? (canEdit ? '영업기회 수정' : '영업기회 상세') : '영업기회 추가'}
       onClose={onClose}
       footer={

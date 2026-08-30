@@ -33,7 +33,7 @@ export default function Customers() {
   }, [customers, q, gradeFilter])
 
   return (
-    <main className="page">
+    <main className="page customers">
       <div className="toolbar">
         <input
           className="search"
@@ -149,6 +149,7 @@ function CustomerModal({ customer, deals, canEdit, canDelete, onClose, onSave, o
 
   return (
     <Modal
+      className="customer-form-modal"
       title={customer ? (canEdit ? '거래처 수정' : '거래처 상세') : '거래처 추가'}
       onClose={onClose}
       footer={
