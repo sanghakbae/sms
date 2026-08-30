@@ -10,6 +10,7 @@ import { STAGES, getStage, isOpen, normalizeStageId } from '../lib/pipeline.js'
 import { formatAmountInput, monthKey, todayISO, wonWithCompact } from '../lib/format.js'
 import { teamSummary } from '../lib/stats.js'
 import { canEditDoc } from '../lib/teams.js'
+import { runWrite } from '../lib/guard.js'
 
 const EMPTY = {
   title: '', customerId: '', serviceId: '', amount: '', stage: 'contact',
@@ -46,13 +47,16 @@ export default function DealModal({ deal, onClose }) {
       canDelete={Boolean(deal) && canEdit}
       onClose={onClose}
       onSave={async (data) => {
-        if (deal) { await updateDeal(deal.id, data); notify('영업기회를 수정했습니다.') }
-        else { await addDeal(data); notify('영업기회를 추가했습니다.') }
+        const ok = await runWrite(notify, deal ? '수정' : '등록', () => (
+          deal ? updateDeal(deal.id, data) : addDeal(data)
+        ))
+        if (!ok) return
+        notify(deal ? '영업기회를 수정했습니다.' : '영업기회를 추가했습니다.')
         onClose()
       }}
       onDelete={async () => {
         if (!window.confirm(`'${deal.title}' 영업기회를 삭제할까요? 되돌릴 수 없습니다.`)) return
-        await removeDeal(deal.id)
+        if (!await runWrite(notify, '삭제', () => removeDeal(deal.id))) return
         notify('영업기회를 삭제했습니다.')
         onClose()
       }}

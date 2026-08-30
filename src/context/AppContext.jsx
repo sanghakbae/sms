@@ -156,10 +156,17 @@ export function AppProvider({ children }) {
     [members, authUser],
   )
 
+  // 팀이 없는 관리자가 '작업할 팀' 으로 고른 값.
+  // 모든 문서에는 teamId 가 붙고 그 값으로 격리가 걸린다 — 팀이 없으면
+  // 만들어도 본인조차 다시 볼 수 없다. 그래서 만들기 전에 팀을 정하게 한다.
+  const [workTeamId, setWorkTeamId] = useState('')
+
   const user = useMemo(() => {
     if (!authUser) return null
-    return { ...authUser, isAdmin, teamId, role }
-  }, [authUser, isAdmin, teamId, role])
+    // 배정된 팀이 우선. 없을 때만(관리자) 고른 팀을 쓴다.
+    const effectiveTeam = teamId || (isAdmin ? workTeamId : '')
+    return { ...authUser, isAdmin, teamId: effectiveTeam, homeTeamId: teamId, role }
+  }, [authUser, isAdmin, teamId, role, workTeamId])
 
   // 1단계 — 설정과 명단. 팀 배정 여부와 무관하게 필요하다
   // (팀이 없는 사람에게 '배정 대기중' 화면을 보여줘야 하므로).
@@ -444,6 +451,10 @@ export function AppProvider({ children }) {
     // 데이터를 만들 수 있는가. 보안 규칙이 '내 팀으로만 만들 수 있다' 를 강제하므로
     // 관리자라도 팀이 없으면 못 만든다 — 눌러야 거부당할 버튼은 미리 잠근다.
     canCreate: Boolean(user && user.teamId),
+    // 팀 없는 관리자에게만 보여줄 '작업 팀' 선택.
+    needsWorkTeam: Boolean(user && user.isAdmin && !user.homeTeamId),
+    workTeamId,
+    setWorkTeamId,
     dataError,
     sync: syncState,
     retryData,
@@ -455,7 +466,7 @@ export function AppProvider({ children }) {
   }), [
     user, authReady, customers, deals, activities, targets, teamTargets, ownerTargets,
     admins, invites, members, teams, services, auditLogs,
-    dataError, syncState, retryData, toast, notify, login, logout, actions,
+    dataError, syncState, retryData, toast, workTeamId, notify, login, logout, actions,
   ])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

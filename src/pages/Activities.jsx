@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext.jsx'
 import ActivityDetail, { ActivityModal } from '../components/ActivityDetail.jsx'
 import { ACTIVITY_TYPES, getActivityType } from '../lib/pipeline.js'
 import { formatDate, relativeDay } from '../lib/format.js'
+import { runWrite } from '../lib/guard.js'
 
 export default function Activities() {
   const { activities, customers, user, canCreate, addActivity, notify } = useApp()
@@ -102,7 +103,11 @@ export default function Activities() {
         <ActivityModal
           customers={customers}
           onClose={() => setAdding(false)}
-          onSave={async (data) => { await addActivity(data); notify('활동을 기록했습니다.'); setAdding(false) }}
+          onSave={async (data) => {
+            if (!await runWrite(notify, '등록', () => addActivity(data))) return
+            notify('활동을 기록했습니다.')
+            setAdding(false)
+          }}
         />
       )}
 

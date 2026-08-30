@@ -12,6 +12,7 @@ import { canEditDoc } from '../lib/teams.js'
 import { initial } from '../lib/accounts.js'
 import { addComment, removeComment, subscribeComments } from '../lib/store.js'
 import { isBlank } from '../lib/markdown.js'
+import { runWrite } from '../lib/guard.js'
 
 const EMPTY = { type: 'visit', customerId: '', date: todayISO(), note: '' }
 
@@ -37,7 +38,7 @@ export default function ActivityDetail({ activity, onClose }) {
         customers={customers}
         onClose={() => setEditing(false)}
         onSave={async (data) => {
-          await updateActivity(activity.id, data)
+          if (!await runWrite(notify, '수정', () => updateActivity(activity.id, data))) return
           notify('활동을 수정했습니다.')
           setEditing(false)
         }}
@@ -58,7 +59,7 @@ export default function ActivityDetail({ activity, onClose }) {
               className="danger"
               onClick={async () => {
                 if (!window.confirm('이 활동 기록을 삭제할까요? 되돌릴 수 없습니다.\n\n달린 댓글도 함께 사라집니다.')) return
-                await removeActivity(activity.id)
+                if (!await runWrite(notify, '삭제', () => removeActivity(activity.id))) return
                 notify('활동을 삭제했습니다.')
                 onClose()
               }}

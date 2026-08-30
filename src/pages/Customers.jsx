@@ -6,6 +6,7 @@ import { GRADES, INDUSTRIES, INDUSTRY_GROUPS, getGrade, getStage } from '../lib/
 import { customerHistory, settlementColor, settlementLabel } from '../lib/settlement.js'
 import { compactWon, formatDate } from '../lib/format.js'
 import { canEditDoc } from '../lib/teams.js'
+import { runWrite } from '../lib/guard.js'
 
 const EMPTY = { name: '', industry: '', grade: 'B', contactName: '', phone: '', email: '', memo: '' }
 
@@ -98,8 +99,12 @@ export default function Customers() {
           canDelete={editing !== 'new' && canEditDoc(user, editing)}
           onClose={() => setEditing(null)}
           onSave={async (data) => {
-            if (editing === 'new') { await addCustomer(data); notify('거래처를 추가했습니다.') }
-            else { await updateCustomer(editing.id, data); notify('거래처를 수정했습니다.') }
+            const isNew = editing === 'new'
+            const ok = await runWrite(notify, isNew ? '등록' : '수정', () => (
+              isNew ? addCustomer(data) : updateCustomer(editing.id, data)
+            ))
+            if (!ok) return
+            notify(isNew ? '거래처를 추가했습니다.' : '거래처를 수정했습니다.')
             setEditing(null)
           }}
           onDelete={async () => {
@@ -110,7 +115,7 @@ export default function Customers() {
               ? `\n\n연결된 영업기회 ${linkedDeals}건, 활동 ${linkedActs}건의 거래처 연결이 끊깁니다.`
               : ''
             if (!window.confirm(`'${editing.name}' 거래처를 삭제할까요? 되돌릴 수 없습니다.${tail}`)) return
-            await removeCustomer(editing.id)
+            if (!await runWrite(notify, '삭제', () => removeCustomer(editing.id))) return
             notify('거래처를 삭제했습니다.')
             setEditing(null)
           }}

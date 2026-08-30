@@ -46,7 +46,10 @@ function NavIcon({ name }) {
 }
 
 function Shell() {
-  const { user, authReady, needsTeam, dataError, sync, retryData, toast, isFirebaseConfigured, logout } = useApp()
+  const {
+    user, authReady, needsTeam, needsWorkTeam, workTeamId, setWorkTeamId, teams,
+    dataError, sync, retryData, toast, isFirebaseConfigured, logout,
+  } = useApp()
   const [tab, setTab] = useState('dashboard')
 
   if (!isFirebaseConfigured) {
@@ -166,6 +169,21 @@ function Shell() {
         ))}
       </nav>
 
+      {/* 팀 없는 관리자는 만들 팀이 없다. 만들기 전에 어느 팀으로 넣을지 고르게 한다. */}
+      {needsWorkTeam && (
+        <div className="worksel" role="group" aria-label="작업 팀 선택">
+          <span>팀에 배정되지 않아 등록할 팀을 골라야 합니다</span>
+          <select
+            value={workTeamId}
+            onChange={(e) => setWorkTeamId(e.target.value)}
+            aria-label="등록할 팀"
+          >
+            <option value="">팀 선택…</option>
+            {(teams || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* 아직 서버에 못 올린 쓰기만 알린다.
           fromCache 는 온라인에서도 참이 된다 — Firestore 가 캐시부터 주기 때문이다.
           그걸 '오프라인' 으로 읽으면 멀쩡할 때도 경고가 뜬다. */}
@@ -176,6 +194,16 @@ function Shell() {
       )}
 
       <PwaBanner />
+
+      {/* 설정 탭은 관리자 전용이라 거기 두면 팀원이 방침에 닿지 못한다.
+          법적으로 항상 접근 가능해야 하므로 앱 전체 푸터에 둔다. */}
+      <footer className="app-foot">
+        <a href="/privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
+        <span className="app-foot-sep" aria-hidden="true">·</span>
+        <span>개인정보 보호책임자 배상학</span>
+        <span className="app-foot-sep" aria-hidden="true">·</span>
+        <a href="mailto:bae@sanghak.kr">bae@sanghak.kr</a>
+      </footer>
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

@@ -2545,3 +2545,34 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .login-foot { margin: 10px 0 0; text-align: center; font-size: 12px; }
 .login-foot a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .login-foot a:hover { color: var(--brand); }
+
+/* 팀 없는 관리자용 '작업 팀' 선택 띠. 등록이 막힌 이유와 해결을 한 줄에 담는다. */
+.worksel {
+  position: sticky;
+  top: 0;
+  z-index: 24;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 10px 16px 0;
+  padding: 10px 14px;
+  background: var(--brand-soft);
+  border: 1px solid #cfe9e5;
+  border-radius: 10px;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+}
+.worksel select {
+  min-height: 32px;
+  border: 1px solid #b9ded8;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+}
+@media (max-width: 719px) {
+  .worksel { margin: 8px 14px 0; padding: 8px 11px; font-size: 12px; }
+}
