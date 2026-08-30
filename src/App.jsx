@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppProvider, useApp } from './context/AppContext.jsx'
 import Login from './pages/Login.jsx'
 import PwaBanner from './components/PwaBanner.jsx'
+import { canSeeMenu } from './lib/menus.js'
 import Dashboard from './pages/Dashboard.jsx'
 import Customers from './pages/Customers.jsx'
 import Deals from './pages/Deals.jsx'
@@ -48,7 +49,7 @@ function NavIcon({ name }) {
 function Shell() {
   const {
     user, authReady, needsTeam, needsWorkTeam, workTeamId, setWorkTeamId, teams,
-    dataError, sync, retryData, toast, isFirebaseConfigured, logout,
+    dataError, sync, retryData, toast, isFirebaseConfigured, logout, menuAccess,
   } = useApp()
   const [tab, setTab] = useState('dashboard')
 
@@ -118,14 +119,10 @@ function Shell() {
     )
   }
 
-  // 관리자·팀장 탭은 권한이 있을 때만 목록에 넣는다.
+  // 어떤 역할이 어떤 메뉴를 보는지는 관리자가 설정 화면에서 정한다.
   // 권한이 사라지면 선택 중이던 탭도 자동으로 첫 탭으로 돌아간다.
-  const canLead = user.isAdmin || user.role === 'leader'
-  const tabs = [
-    ...TABS,
-    ...(canLead ? LEAD_TABS : []),
-    ...(user.isAdmin ? ADMIN_TABS : []),
-  ]
+  const tabs = [...TABS, ...LEAD_TABS, ...ADMIN_TABS]
+    .filter((t) => canSeeMenu(user, t.id, menuAccess))
   const current = tabs.find((t) => t.id === tab) || tabs[0]
   const { Page } = current
 

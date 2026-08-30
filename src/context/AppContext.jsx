@@ -30,7 +30,11 @@ import {
   subscribeAdmins,
   subscribeAuditLogs,
   onSyncState,
+  setMenuAccess,
+  setNotifyWebhook,
   subscribeCustomers,
+  subscribeMenuAccess,
+  subscribeNotify,
   subscribeDeals,
   subscribeInvites,
   subscribeMembers,
@@ -160,6 +164,8 @@ export function AppProvider({ children }) {
   // 모든 문서에는 teamId 가 붙고 그 값으로 격리가 걸린다 — 팀이 없으면
   // 만들어도 본인조차 다시 볼 수 없다. 그래서 만들기 전에 팀을 정하게 한다.
   const [workTeamId, setWorkTeamId] = useState('')
+  const [notifyCfg, setNotifyCfg] = useState({})
+  const [menuAccess, setMenuAccessState] = useState({})
 
   const user = useMemo(() => {
     if (!authUser) return null
@@ -179,6 +185,8 @@ export function AppProvider({ children }) {
 
     const unsubs = [
       subscribeAdmins(onData('admins', setAdminList), onErr('admins')),
+      subscribeNotify(onData('notify', setNotifyCfg), onErr('notify')),
+      subscribeMenuAccess(onData('menuAccess', setMenuAccessState), onErr('menuAccess')),
       subscribeMembers(onData('members', setMembers), onErr('members')),
       subscribeTeams(onData('teams', setTeamList), onErr('teams')),
       subscribeServices(onData('services', setServiceList), onErr('services')),
@@ -361,6 +369,20 @@ export function AppProvider({ children }) {
         for (const e of before) if (!after.has(e)) log(ACTIONS.ADMIN_REMOVE, { targetLabel: e })
       },
 
+      // 메뉴 권한·알림 설정. 관리자만 쓸 수 있고 규칙에서도 막는다.
+      setMenuAccess: async (access) => {
+        await setMenuAccess(access)
+        log(ACTIONS.SETTINGS_CHANGE, { targetLabel: '메뉴 권한' })
+      },
+
+      setNotifyWebhook: async (webhook) => {
+        await setNotifyWebhook(webhook)
+        log(ACTIONS.SETTINGS_CHANGE, {
+          targetLabel: '구글챗 알림',
+          note: webhook ? '주소 등록' : '끔',
+        })
+      },
+
       setInvite: async (email, teamId) => {
         await setInvite(user, email, teamId)
         log(ACTIONS.MEMBER_INVITE, {
@@ -454,6 +476,8 @@ export function AppProvider({ children }) {
     // 팀 없는 관리자에게만 보여줄 '작업 팀' 선택.
     needsWorkTeam: Boolean(user && user.isAdmin && !user.homeTeamId),
     workTeamId,
+    notifyCfg,
+    menuAccess,
     setWorkTeamId,
     dataError,
     sync: syncState,
@@ -466,7 +490,7 @@ export function AppProvider({ children }) {
   }), [
     user, authReady, customers, deals, activities, targets, teamTargets, ownerTargets,
     admins, invites, members, teams, services, auditLogs,
-    dataError, syncState, retryData, toast, workTeamId, notify, login, logout, actions,
+    dataError, syncState, retryData, toast, workTeamId, notifyCfg, menuAccess, notify, login, logout, actions,
   ])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

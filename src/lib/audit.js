@@ -30,6 +30,7 @@ export const ACTIONS = {
   PAYMENT_ADD: 'payment.add',
   PAYMENT_REMOVE: 'payment.remove',
   DATA_MIGRATE: 'data.migrate',
+  SETTINGS_CHANGE: 'settings.change',
 }
 
 // 위험도 — 목록에서 눈에 걸려야 할 순서를 정한다.
@@ -57,6 +58,7 @@ const CATALOG = {
   [ACTIONS.PAYMENT_ADD]: { label: '입금 기록', level: MID },
   [ACTIONS.PAYMENT_REMOVE]: { label: '입금 기록 삭제', level: HIGH },
   [ACTIONS.DATA_MIGRATE]: { label: '데이터 일괄 배정', level: HIGH },
+  [ACTIONS.SETTINGS_CHANGE]: { label: '설정 변경', level: HIGH },
 }
 
 export function actionLabel(action) {

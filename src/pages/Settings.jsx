@@ -4,10 +4,15 @@ import { compactWon, formatDate, yearKey, yearLabel } from '../lib/format.js'
 import { monthlySeries, targetProgress, yearlyWon } from '../lib/stats.js'
 import { ALLOWED_DOMAINS, BOOTSTRAP_ADMINS, initial } from '../lib/accounts.js'
 import { teamName as nameOfTeam } from '../lib/teams.js'
+import { LEVELS, MENU_DEFS, normalizeAccess } from '../lib/menus.js'
+import { runWrite } from '../lib/guard.js'
 import { actionLabel, actionsIn, describe, isHighRisk, matches } from '../lib/audit.js'
 
 export default function Settings() {
-  const { user, deals, targets, services, teams, admins, members, auditLogs, setServices, notify } = useApp()
+  const {
+    user, deals, targets, services, teams, admins, members, auditLogs,
+    menuAccess, setMenuAccess, setServices, notify,
+  } = useApp()
   const year = yearKey()
   const target = Number(targets[year]) || 0
   const won = useMemo(() => yearlyWon(deals, year), [deals, year])
@@ -46,6 +51,11 @@ export default function Settings() {
         <>
           <ServiceCatalog services={services} setServices={setServices} notify={notify} />
           <SecurityPanel teams={teams} admins={admins} members={members} />
+          <MenuAccessPanel
+            menuAccess={menuAccess}
+            setMenuAccess={setMenuAccess}
+            notify={notify}
+          />
           <AuditPanel logs={auditLogs} />
         </>
       )}
@@ -184,14 +194,67 @@ function SecurityPanel({ teams, admins, members }) {
         ))}
       </div>
 
-      <div className="sec-note">
-        <b>보안 규칙은 배포해야 적용됩니다.</b>
-        <p>
-          <code>firestore.rules</code> 와 <code>src/lib/accounts.js</code> 는 같은 기준을
-          중복 구현합니다. 한쪽만 고치면 화면은 열리는데 데이터가 거부되거나 그 반대가 됩니다.
-        </p>
-        <pre><code>firebase deploy --only firestore:rules,firestore:indexes</code></pre>
-      </div>
+    </section>
+  )
+}
+
+/* ------------------------------- 메뉴 권한 설정 ------------------------------- */
+
+/** 어떤 역할이 어떤 메뉴를 보는지 정한다. 관리자는 설정과 무관하게 전부 본다. */
+function MenuAccessPanel({ menuAccess, setMenuAccess, notify }) {
+  const current = useMemo(() => normalizeAccess(menuAccess), [menuAccess])
+  const [draft, setDraft] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const value = draft || current
+  const dirty = MENU_DEFS.some((m) => value[m.id] !== current[m.id])
+
+  const save = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      if (!await runWrite(notify, '저장', () => setMenuAccess(normalizeAccess(value)))) return
+      notify('메뉴 권한을 저장했습니다.')
+      setDraft(null)
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="panel">
+      <h3>메뉴 권한</h3>
+      <p className="hint">
+        역할별로 어떤 메뉴가 보이는지 정합니다. <b>관리자는 설정과 무관하게 전부 봅니다</b> —
+        잘못 잠가 스스로 못 들어오는 일을 막기 위해서입니다.
+      </p>
+
+      <form onSubmit={save}>
+        <div className="menuacc">
+          {MENU_DEFS.map((m) => (
+            <div className={`menuacc-row${m.fixed ? ' fixed' : ''}`} key={m.id}>
+              <span className="menuacc-name">{m.label}</span>
+              {m.fixed ? (
+                <span className="menuacc-fixed">
+                  {m.id === 'settings' ? '관리자 고정' : '전원 고정'}
+                </span>
+              ) : (
+                <select
+                  value={value[m.id]}
+                  onChange={(e) => setDraft({ ...value, [m.id]: e.target.value })}
+                  aria-label={`${m.label} 접근 권한`}
+                >
+                  {LEVELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                </select>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="menuacc-actions">
+          {dirty && (
+            <button type="button" onClick={() => setDraft(null)}>되돌리기</button>
+          )}
+          <button type="submit" className="primary" disabled={busy || !dirty}>저장</button>
+        </div>
+      </form>
     </section>
   )
 }

@@ -2576,3 +2576,48 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 719px) {
   .worksel { margin: 8px 14px 0; padding: 8px 11px; font-size: 12px; }
 }
+
+/* ------------------------------- 메뉴 권한·알림 ------------------------------- */
+.menuacc { display: flex; flex-direction: column; }
+.menuacc-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.menuacc-row:last-child { border-bottom: 0; }
+.menuacc-name { font-size: 14px; font-weight: 700; }
+.menuacc-row select {
+  min-height: 34px; min-width: 120px;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 8px; background: var(--surface); font-size: 13.5px;
+}
+.menuacc-row.fixed .menuacc-name { color: var(--muted); }
+.menuacc-fixed { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.menuacc-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.menuacc-actions button {
+  min-height: var(--control-h);
+  border: 1px solid var(--line); background: var(--surface);
+  border-radius: var(--radius-sm); padding: 8px 14px;
+  font-weight: 700; font-size: 13.5px;
+}
+.menuacc-actions .primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.menuacc-actions .primary:disabled { opacity: 0.5; }
+
+.notify-now {
+  margin: 4px 0 12px; padding: 10px 12px;
+  background: var(--bg); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--muted);
+}
+.notify-now b { color: var(--ink); }
+.notify-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.notify-actions button {
+  min-height: var(--control-h);
+  border: 1px solid var(--line); background: var(--surface);
+  border-radius: var(--radius-sm); padding: 8px 14px;
+  font-weight: 700; font-size: 13.5px;
+}
+.notify-actions .primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+@media (max-width: 719px) {
+  .menuacc-row { gap: 8px; }
+  .menuacc-row select { min-width: 96px; }
+}

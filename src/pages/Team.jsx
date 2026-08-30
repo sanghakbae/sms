@@ -16,6 +16,8 @@ import {
   normalizeEmail,
 } from '../lib/accounts.js'
 import { downloadCsv, toCsv } from '../lib/csv.js'
+import { looksLikeChatWebhook, maskWebhook, sendChat } from '../lib/notify.js'
+import { runWrite } from '../lib/guard.js'
 import {
   ROLES,
   ROLE_LEADER,
@@ -96,6 +98,7 @@ export default function Team() {
     user, setAdmins, setInvite, removeInvite, sendInviteEmail, setYearlyTarget, setOwnerTargets,
     setTeams, setTeamTargets, setMemberTeam, setMemberRole, removeMember,
     assignMissingTeam, countMissingTeam, notify,
+    notifyCfg, setNotifyWebhook,
   } = useApp()
   const month = monthKey()
 
@@ -189,6 +192,12 @@ export default function Team() {
         )}
         <MemberStatusTable groups={groups} admins={admins} allocOf={allocOf} />
       </section>
+
+      <NotifyPanel
+        notifyCfg={notifyCfg}
+        setNotifyWebhook={setNotifyWebhook}
+        notify={notify}
+      />
 
       <AdminRoster admins={admins} rows={rows} user={user} setAdmins={setAdmins} notify={notify} />
 
@@ -1098,6 +1107,79 @@ function OwnerAllocation({ groups, teamTargets, ownerTargets, setOwnerTargets, n
           <button type="submit" className="primary" disabled={busy}>할당 저장</button>
         </div>
       </form>
+    </section>
+  )
+}
+
+/* --------------------------------- 알림 설정 --------------------------------- */
+
+/** 구글챗 웹훅 등록. 주소 자체가 발송 권한이라 코드에 박지 않고 여기서 받는다. */
+function NotifyPanel({ notifyCfg, setNotifyWebhook, notify }) {
+  const saved = (notifyCfg && notifyCfg.chatWebhook) || ''
+  const [url, setUrl] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async (e) => {
+    e.preventDefault()
+    const next = url.trim()
+    // 빈 값은 '알림 끄기' 로 받아들인다.
+    if (next && !looksLikeChatWebhook(next)) {
+      setError('구글챗 웹훅 주소가 아닙니다. chat.googleapis.com 으로 시작하는 주소를 넣어주세요.')
+      return
+    }
+    setError('')
+    setBusy(true)
+    try {
+      if (!await runWrite(notify, '저장', () => setNotifyWebhook(next))) return
+      notify(next ? '알림 주소를 저장했습니다.' : '알림을 껐습니다.')
+      setUrl('')
+    } finally { setBusy(false) }
+  }
+
+  const test = async () => {
+    const target = url.trim() || saved
+    if (!looksLikeChatWebhook(target)) { notify('먼저 웹훅 주소를 넣어주세요.'); return }
+    setBusy(true)
+    try {
+      const ok = await sendChat(target, '✅ 영업관리 알림 연결 테스트입니다.')
+      notify(ok ? '테스트 메시지를 보냈습니다. 챗을 확인해주세요.' : '보내지 못했습니다. 주소를 확인해주세요.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="panel">
+      <h3>구글챗 알림</h3>
+      <p className="hint">
+        팀 배정 대기가 생기면 이 주소로 알립니다. 구글챗에서 스페이스 → 앱 및 통합 →
+        웹훅으로 주소를 만들어 붙여넣으세요.
+      </p>
+
+      <div className="notify-now">
+        현재 <b>{saved ? maskWebhook(saved) : '설정 안 함'}</b>
+      </div>
+
+      <form onSubmit={save} className="form">
+        {error && <div className="login-error">{error}</div>}
+        <label className="field"><span>웹훅 주소</span>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={saved ? '바꾸려면 새 주소를 넣으세요' : 'https://chat.googleapis.com/v1/spaces/…'}
+            inputMode="url"
+          />
+          <small className="hint">비우고 저장하면 알림이 꺼집니다.</small>
+        </label>
+        <div className="notify-actions">
+          <button type="button" onClick={test} disabled={busy}>테스트 전송</button>
+          <button type="submit" className="primary" disabled={busy}>저장</button>
+        </div>
+      </form>
+
+      <small className="hint">
+        주의: 브라우저에서 직접 보내므로 <b>로그인한 구성원은 개발자도구로 이 주소를 볼 수 있습니다.</b>
+        외부에는 닫혀 있지만 내부에는 열려 있습니다.
+      </small>
     </section>
   )
 }

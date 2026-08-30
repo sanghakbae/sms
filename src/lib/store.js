@@ -29,6 +29,7 @@ import {
 
 import { auth, collectionName, db, isFirebaseConfigured } from '../firebase.js'
 import { isAdminEmail, isAllowedEmail, normalizeEmail, shortName } from './accounts.js'
+import { sendChat, teamRequestText } from './notify.js'
 import { ROLE_MEMBER, UNASSIGNED, defaultTeamId, normalizeTeams } from './teams.js'
 
 export { isFirebaseConfigured }
@@ -450,6 +451,50 @@ export async function setOwnerTargets(year, allocation) {
 }
 
 /** 연 매출목표. settings/targets 문서에 'YYYY' 키로 저장한다. */
+/** 메뉴 접근 권한(settings/menuAccess). { 메뉴id: 'all'|'lead'|'admin' } */
+export function subscribeMenuAccess(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData({})
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'menuAccess')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? snap.data() : {}),
+    (err) => onError && onError(err),
+  )
+}
+
+/** 메뉴 권한 저장(관리자만 — 규칙에서 막는다). */
+export async function setMenuAccess(access) {
+  assertConfigured()
+  await setDoc(doc(db, collectionName('settings'), 'menuAccess'), access || {}, { merge: true })
+}
+
+/** 알림 설정(settings/notify). 구글챗 웹훅 주소를 담는다. */
+export function subscribeNotify(onData, onError) {
+  if (!isFirebaseConfigured) {
+    onData({})
+    return () => {}
+  }
+  const ref = doc(db, collectionName('settings'), 'notify')
+  return onSnapshot(
+    ref,
+    (snap) => onData(snap.exists() ? snap.data() : {}),
+    (err) => onError && onError(err),
+  )
+}
+
+/** 웹훅 주소 저장(관리자만 — 규칙에서 막는다). 빈 값이면 알림을 끈다. */
+export async function setNotifyWebhook(webhook) {
+  assertConfigured()
+  await setDoc(
+    doc(db, collectionName('settings'), 'notify'),
+    { chatWebhook: String(webhook || '').trim() },
+    { merge: true },
+  )
+}
+
 export async function setYearlyTarget(year, amount) {
   assertConfigured()
   await setDoc(
@@ -468,6 +513,20 @@ export async function setYearlyTarget(year, amount) {
 // 안 막으면 아무나 남의 팀에 들어가 그 팀 데이터를 볼 수 있다.
 
 /** 로그인 직후 본인 문서를 올린다(없으면 만들고, 있으면 신원 정보만 갱신). */
+/** 팀 배정 대기 알림. 등록된 웹훅이 없으면 조용히 넘어간다. */
+async function notifyTeamRequest(user) {
+  try {
+    const snap = await getDoc(doc(db, collectionName('settings'), 'notify'))
+    const webhook = snap.exists() ? snap.data().chatWebhook : ''
+    if (!webhook) return
+    const site = typeof window === 'undefined' ? '' : window.location.origin
+    await sendChat(webhook, teamRequestText(user, site))
+  } catch (err) {
+    // 알림은 부가 기능이다. 실패해도 본류(로그인)를 막지 않는다.
+    console.warn('팀 배정 알림 실패', err)
+  }
+}
+
 export async function registerMember(user) {
   if (!isFirebaseConfigured || !user?.uid) return
   const ref = doc(db, collectionName('members'), user.uid)
@@ -502,6 +561,9 @@ export async function registerMember(user) {
         role: ROLE_MEMBER,
         createdAt: serverTimestamp(),
       })
+      // 자동 배정이 안 됐으면 관리자가 손으로 넣어줘야 쓸 수 있다 —
+      // 기다리는 사람이 생겼음을 알린다. 실패해도 로그인은 그대로 진행된다.
+      if (!initialTeamId) notifyTeamRequest(user)
     }
   } catch (err) {
     // 명단 등록이 실패해도 앱은 떠야 한다 — 관리자가 목록에서 못 볼 뿐이다.
